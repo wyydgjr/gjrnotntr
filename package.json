@@ -1,0 +1,25 @@
+{
+  "name": "ve",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n mock,vite -c yellow,cyan \"npm run mock\" \"vite\"",
+    "mock": "node mock-server.cjs",
+    "start": "node mock-server.cjs",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.18.1",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.38",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.7",
+    "concurrently": "^10.0.3",
+    "json-server": "^0.17.4",
+    "vite": "^8.1.0"
+  }
+}
