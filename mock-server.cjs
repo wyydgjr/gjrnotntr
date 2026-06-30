@@ -1,12 +1,19 @@
 const jsonServer = require('json-server')
 const path = require('path')
+const express = require('express')
 
 const server = jsonServer.create()
 const router = jsonServer.router(path.join(__dirname, 'db.json'))
 const middlewares = jsonServer.defaults()
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 server.use(middlewares)
 server.use(jsonServer.bodyParser)
+
+if (isProduction) {
+  server.use(express.static(path.join(__dirname, 'dist')))
+}
 server.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
   res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS')
@@ -144,6 +151,13 @@ server.use((req, res, next) => {
 })
 
 server.use(router)
+
+if (isProduction) {
+  server.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) return res.status(404).json({ message: 'API not found' })
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'))
+  })
+}
 
 const PORT = process.env.PORT || 3001
 
