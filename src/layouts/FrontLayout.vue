@@ -46,13 +46,41 @@
             <span class="cart-icon">🛒</span>
             <span v-if="cart.count > 0" class="cart-badge">{{ cart.count }}</span>
           </router-link>
-          <template v-if="auth.isLoggedIn">
-            <router-link to="/profile" class="btn btn-sm">{{ $t('nav.profile') }}</router-link>
-            <router-link to="/wishlist" class="btn btn-sm">{{ $t('nav.wishlist') }}</router-link>
-            <router-link to="/orders" class="btn btn-sm">{{ $t('nav.orders') }}</router-link>
-            <span class="user-greeting">{{ auth.effectiveUser?.username }}</span>
-            <button class="btn btn-sm" @click="handleLogout">{{ $t('auth.logout') }}</button>
-          </template>
+          <!-- 已登录：头像 + 用户名下拉菜单 -->
+          <div v-if="auth.isLoggedIn" class="user-menu-wrapper" ref="menuRef">
+            <div class="user-trigger" @click="menuOpen = !menuOpen">
+              <div class="user-avatar-sm">
+                <img v-if="auth.effectiveUser?.avatar" :src="auth.effectiveUser.avatar" alt="" />
+                <span v-else class="avatar-letter-sm">{{ (auth.effectiveUser?.username || 'U').charAt(0).toUpperCase() }}</span>
+              </div>
+              <span class="user-name-sm">{{ auth.effectiveUser?.username }}</span>
+              <span class="menu-arrow" :class="{ open: menuOpen }">▾</span>
+            </div>
+            <transition name="menu-fade">
+              <div v-if="menuOpen" class="user-dropdown">
+                <router-link to="/profile" class="dropdown-item" @click="menuOpen = false">
+                  <span class="dropdown-icon">👤</span> {{ $t('nav.profile') }}
+                </router-link>
+                <router-link to="/orders" class="dropdown-item" @click="menuOpen = false">
+                  <span class="dropdown-icon">📋</span> {{ $t('nav.orders') }}
+                </router-link>
+                <router-link to="/wishlist" class="dropdown-item" @click="menuOpen = false">
+                  <span class="dropdown-icon">❤️</span> {{ $t('nav.wishlist') }}
+                </router-link>
+                <router-link to="/addresses" class="dropdown-item" @click="menuOpen = false">
+                  <span class="dropdown-icon">📍</span> {{ $t('nav.addresses') }}
+                </router-link>
+                <router-link to="/coupons" class="dropdown-item" @click="menuOpen = false">
+                  <span class="dropdown-icon">🎫</span> {{ $t('nav.coupons') }}
+                </router-link>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item dropdown-logout" @click="handleLogout">
+                  <span class="dropdown-icon">🚪</span> {{ $t('auth.logout') }}
+                </button>
+              </div>
+            </transition>
+          </div>
+          <!-- 未登录：登录 + 注册 -->
           <template v-else>
             <router-link to="/login" class="btn btn-sm">{{ $t('auth.login') }}</router-link>
             <router-link to="/register" class="btn btn-sm btn-primary">{{
@@ -96,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
@@ -107,6 +135,8 @@ const cart = useCartStore()
 const auth = useAuthStore()
 const mobileMenu = ref(false)
 const searchWord = ref('')
+const menuOpen = ref(false)
+const menuRef = ref(null)
 
 function doSearch() {
   if (!searchWord.value.trim()) return
@@ -115,9 +145,25 @@ function doSearch() {
 }
 
 function handleLogout() {
+  menuOpen.value = false
   auth.logout()
   $router.push('/')
 }
+
+// 点击外部关闭下拉菜单
+function handleClickOutside(e) {
+  if (menuRef.value && !menuRef.value.contains(e.target)) {
+    menuOpen.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped>
@@ -216,11 +262,122 @@ function handleLogout() {
   align-items: center;
   gap: 12px;
 }
-.user-greeting {
+
+/* ── 用户下拉菜单 ── */
+.user-menu-wrapper {
+  position: relative;
+}
+.user-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+  user-select: none;
+}
+.user-trigger:hover {
+  background: var(--bg-hover, #f1f5f9);
+}
+.user-avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.user-avatar-sm img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-letter-sm {
+  color: #fff;
   font-size: 14px;
-  color: var(--text-secondary);
+  font-weight: 700;
+}
+.user-name-sm {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
+.menu-arrow {
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+}
+.menu-arrow.open {
+  transform: rotate(180deg);
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 200;
+}
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 8px;
+  transition: background 0.15s;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+.dropdown-item:hover {
+  background: var(--bg-hover, #f1f5f9);
+}
+.dropdown-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.dropdown-logout {
+  color: var(--danger, #dc2626);
+}
+.dropdown-logout:hover {
+  background: #fef2f2;
+}
+
+/* 下拉动画 */
+.menu-fade-enter-active,
+.menu-fade-leave-active {
+  transition: opacity 0.15s, transform 0.15s;
+}
+.menu-fade-enter-from,
+.menu-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* ── 购物车 ── */
 .cart-btn {
   position: relative;
   font-size: 22px;

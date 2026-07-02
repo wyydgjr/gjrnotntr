@@ -121,6 +121,8 @@ export const profileSchema = z.object({
   email: emailRule,
   phone: phoneRule,
   password: passwordRule.optional().or(z.literal('')),
+  gender: z.enum(['male', 'female', 'other']).optional(),
+  birthday: z.string().optional().or(z.literal('')),
 })
 
 /** 评论表单 */
