@@ -62,11 +62,11 @@ dist/assets/main-DXqjImII.js                 26.91 kB │ gzip: 10.85 kB
 dist/assets/vendor-utils-DvomfXer.js        106.29 kB │ gzip: 32.11 kB
 dist/assets/vendor-vue-DrMHTQ0f.js          203.24 kB │ gzip: 75.82 kB
 
-[32m✓ built in 414ms[39m
+[32m✓ built in 407ms[39m
 
 ✨ [vite-plugin-compression]:algorithm=gzip - compressed file successfully: 
-dist/c:/Users/wyyd/ve/assets/main-DXqjImII.js.gz           26.28kb / gzip: 10.59kb
 dist/c:/Users/wyyd/ve/assets/Profile-BX3Coceq.js.gz        13.61kb / gzip: 4.63kb
+dist/c:/Users/wyyd/ve/assets/main-DXqjImII.js.gz           26.28kb / gzip: 10.59kb
 dist/c:/Users/wyyd/ve/assets/vendor-utils-DvomfXer.js.gz   103.80kb / gzip: 31.06kb
 dist/c:/Users/wyyd/ve/assets/vendor-vue-DrMHTQ0f.js.gz     198.48kb / gzip: 73.23kb
 

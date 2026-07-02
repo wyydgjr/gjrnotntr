@@ -22,8 +22,8 @@
 //    JSONBIN_ID=你的bin-id
 //    JSONBIN_MASTER_KEY=$2a$10$...
 
-const JSONBIN_ID = process.env.JSONBIN_ID || '67e6f8a88a456b796683c6b5'
-const JSONBIN_MASTER_KEY = process.env.JSONBIN_MASTER_KEY || ''
+const JSONBIN_ID = process.env.JSONBIN_ID || '6a4619bbda38895dfe20e2f5'
+const JSONBIN_MASTER_KEY = process.env.JSONBIN_MASTER_KEY || '$2a$10$rI5sADEOLoyZ/4TRglDr1.FGK4E4xzeKQuv7wQTaL86U8.v1k16PG'
 const JSONBIN_BASE = 'https://api.jsonbin.io/v3'
 
 // 是否启用 JSONBin（有 key 才启用）
