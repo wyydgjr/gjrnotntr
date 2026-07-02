@@ -51,9 +51,9 @@
             <div class="user-trigger" @click="menuOpen = !menuOpen">
               <div class="user-avatar-sm">
                 <img v-if="auth.effectiveUser?.avatar" :src="auth.effectiveUser.avatar" alt="" />
-                <span v-else class="avatar-letter-sm">{{ (auth.effectiveUser?.username || 'U').charAt(0).toUpperCase() }}</span>
+                <span v-else class="avatar-letter-sm">{{ displayName.charAt(0).toUpperCase() }}</span>
               </div>
-              <span class="user-name-sm">{{ auth.effectiveUser?.username }}</span>
+              <span class="user-name-sm">{{ displayName }}</span>
               <span class="menu-arrow" :class="{ open: menuOpen }">▾</span>
             </div>
             <transition name="menu-fade">
@@ -124,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
@@ -137,6 +137,12 @@ const mobileMenu = ref(false)
 const searchWord = ref('')
 const menuOpen = ref(false)
 const menuRef = ref(null)
+
+// 优先显示 nickname，fallback 到 username
+const displayName = computed(() => {
+  const u = auth.effectiveUser
+  return u?.nickname || u?.username || '用户'
+})
 
 function doSearch() {
   if (!searchWord.value.trim()) return

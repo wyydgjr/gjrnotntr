@@ -233,6 +233,7 @@ const activeTab = ref('info')
 const fileInput = ref(null)
 const avatarPreview = ref(user.value?.avatar || '')
 const saving = ref(false)
+const pageReady = ref(true)  // 页面默认就绪，不阻塞渲染
 
 const tabs = [
   { key: 'info', label: '个人信息', icon: '👤' },
@@ -432,8 +433,9 @@ function formatDate(dateStr) {
 }
 
 onMounted(() => {
-  loadAddresses()
-  loadStats()
+  // 异步加载，失败不阻塞页面渲染
+  loadAddresses().catch(() => {})
+  loadStats().catch(() => {})
 })
 </script>
 

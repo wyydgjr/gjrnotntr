@@ -1,0 +1,6 @@
+- generic [active]:
+  - generic:
+    - generic:
+      - link "跳到主要内容" [ref=e1] [cursor=pointer]:
+        - /url: "#main-content"
+      - progressbar "页面加载中" [ref=e2]

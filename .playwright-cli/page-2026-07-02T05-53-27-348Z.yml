@@ -1,0 +1,172 @@
+- generic [ref=e3]:
+  - link "跳到主要内容" [ref=e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e24]:
+    - navigation "侧边导航" [ref=e25]:
+      - generic [ref=e26]:
+        - generic [ref=e27]: ◆
+        - generic [ref=e28]: Ve Admin
+      - navigation [ref=e29]:
+        - link "仪表盘" [ref=e30] [cursor=pointer]:
+          - /url: /admin/dashboard
+          - generic [ref=e31]: 📊
+          - generic [ref=e32]: 仪表盘
+        - link "订单管理" [ref=e33] [cursor=pointer]:
+          - /url: /admin/orders
+          - generic [ref=e34]: 📋
+          - generic [ref=e35]: 订单管理
+        - link "产品管理" [ref=e36] [cursor=pointer]:
+          - /url: /admin/products
+          - generic [ref=e37]: 📦
+          - generic [ref=e38]: 产品管理
+        - link "库存管理" [ref=e39] [cursor=pointer]:
+          - /url: /admin/inventory
+          - generic [ref=e40]: 📉
+          - generic [ref=e41]: 库存管理
+        - link "分类管理" [ref=e42] [cursor=pointer]:
+          - /url: /admin/categories
+          - generic [ref=e43]: 📂
+          - generic [ref=e44]: 分类管理
+        - link "销售报表" [ref=e45] [cursor=pointer]:
+          - /url: /admin/reports
+          - generic [ref=e46]: 📈
+          - generic [ref=e47]: 销售报表
+        - link "物流管理" [ref=e48] [cursor=pointer]:
+          - /url: /admin/logistics
+          - generic [ref=e49]: 🚚
+          - generic [ref=e50]: 物流管理
+        - link "会员管理" [ref=e51] [cursor=pointer]:
+          - /url: /admin/members
+          - generic [ref=e52]: 👑
+          - generic [ref=e53]: 会员管理
+        - link "优惠券" [ref=e54] [cursor=pointer]:
+          - /url: /admin/coupons
+          - generic [ref=e55]: 🎫
+          - generic [ref=e56]: 优惠券
+        - link "轮播管理" [ref=e57] [cursor=pointer]:
+          - /url: /admin/banners
+          - generic [ref=e58]: 🎠
+          - generic [ref=e59]: 轮播管理
+        - link "售后" [ref=e60] [cursor=pointer]:
+          - /url: /admin/after-sales
+          - generic [ref=e61]: 🔄
+          - generic [ref=e62]: 售后
+        - link "发票" [ref=e63] [cursor=pointer]:
+          - /url: /admin/invoices
+          - generic [ref=e64]: 🧾
+          - generic [ref=e65]: 发票
+        - link "评价管理" [ref=e66] [cursor=pointer]:
+          - /url: /admin/reviews
+          - generic [ref=e67]: ⭐
+          - generic [ref=e68]: 评价管理
+        - link "供应商" [ref=e69] [cursor=pointer]:
+          - /url: /admin/suppliers
+          - generic [ref=e70]: 🏭
+          - generic [ref=e71]: 供应商
+        - link "采购单" [ref=e72] [cursor=pointer]:
+          - /url: /admin/purchase-orders
+          - generic [ref=e73]: 📥
+          - generic [ref=e74]: 采购单
+        - link "属性模板" [ref=e75] [cursor=pointer]:
+          - /url: /admin/spec-templates
+          - generic [ref=e76]: 🏷️
+          - generic [ref=e77]: 属性模板
+        - link "用户管理" [ref=e78] [cursor=pointer]:
+          - /url: /admin/users
+          - generic [ref=e79]: 👥
+          - generic [ref=e80]: 用户管理
+        - link "角色管理" [ref=e81] [cursor=pointer]:
+          - /url: /admin/roles
+          - generic [ref=e82]: 🔐
+          - generic [ref=e83]: 角色管理
+        - link "操作日志" [ref=e84] [cursor=pointer]:
+          - /url: /admin/audit-logs
+          - generic [ref=e85]: 📝
+          - generic [ref=e86]: 操作日志
+        - link "数据备份" [ref=e87] [cursor=pointer]:
+          - /url: /admin/backup
+          - generic [ref=e88]: 💾
+          - generic [ref=e89]: 数据备份
+        - link "系统设置" [ref=e90] [cursor=pointer]:
+          - /url: /admin/settings
+          - generic [ref=e91]: ⚙️
+          - generic [ref=e92]: 系统设置
+      - button "◀" [ref=e94] [cursor=pointer]
+    - generic [ref=e95]:
+      - banner [ref=e96]:
+        - heading "仪表盘" [level=3] [ref=e98]
+        - generic [ref=e99]:
+          - generic [ref=e100]:
+            - button "切换到中文" [ref=e101] [cursor=pointer]: 中
+            - button "Switch to English" [ref=e102] [cursor=pointer]: EN
+          - button "🌙" [ref=e103] [cursor=pointer]
+          - link "返回前台" [ref=e104] [cursor=pointer]:
+            - /url: /
+          - link "gjr" [ref=e105] [cursor=pointer]:
+            - /url: /admin/profile
+          - link "⚙️" [ref=e106] [cursor=pointer]:
+            - /url: /admin/settings
+          - button "退出" [ref=e107] [cursor=pointer]
+      - main [ref=e108]:
+        - generic [ref=e109]:
+          - generic [ref=e110]:
+            - heading "仪表盘" [level=2] [ref=e111]
+            - button "📄 导出Word报告" [ref=e112] [cursor=pointer]
+          - generic [ref=e113]:
+            - generic [ref=e114] [cursor=pointer]:
+              - generic [ref=e115]: 👥
+              - generic [ref=e116]:
+                - generic [ref=e117]: "1"
+                - generic [ref=e118]: 用户总数
+            - generic [ref=e119] [cursor=pointer]:
+              - generic [ref=e120]: 📦
+              - generic [ref=e121]:
+                - generic [ref=e122]: "12"
+                - generic [ref=e123]: 产品总数
+            - generic [ref=e124] [cursor=pointer]:
+              - generic [ref=e125]: 📋
+              - generic [ref=e126]:
+                - generic [ref=e127]: "0"
+                - generic [ref=e128]: 订单总数
+            - generic [ref=e129]:
+              - generic [ref=e130]: ⭐
+              - generic [ref=e131]:
+                - generic [ref=e132]: "1"
+                - generic [ref=e133]: 活跃用户
+            - generic [ref=e134] [cursor=pointer]:
+              - generic [ref=e135]: ⏳
+              - generic [ref=e136]:
+                - generic [ref=e137]: "0"
+                - generic [ref=e138]: 待处理订单
+            - generic [ref=e139] [cursor=pointer]:
+              - generic [ref=e140]: ⚠️
+              - generic [ref=e141]:
+                - generic [ref=e142]: "0"
+                - generic [ref=e143]: 低库存商品
+          - generic [ref=e144]:
+            - generic [ref=e145]:
+              - heading "月度营收趋势" [level=3] [ref=e146]
+              - generic [ref=e147]: 暂无营收数据
+            - generic [ref=e148]:
+              - heading "最近活动" [level=3] [ref=e149]
+              - generic [ref=e150]:
+                - generic [ref=e151]:
+                  - generic [ref=e153]:
+                    - generic [ref=e154]: 产品更新
+                    - generic [ref=e155]: 产品「高效洗衣液」信息已更新
+                  - generic [ref=e156]: 2025-06-10
+                - generic [ref=e157]:
+                  - generic [ref=e159]:
+                    - generic [ref=e160]: 产品更新
+                    - generic [ref=e161]: 产品「保温水杯」信息已更新
+                  - generic [ref=e162]: 2025-06-10
+                - generic [ref=e163]:
+                  - generic [ref=e165]:
+                    - generic [ref=e166]: 产品更新
+                    - generic [ref=e167]: 产品「潮流手提包」信息已更新
+                  - generic [ref=e168]: 2025-06-10
+                - generic [ref=e169]:
+                  - generic [ref=e171]:
+                    - generic [ref=e172]: 新增用户
+                    - generic [ref=e173]: 用户「gjr」已注册
+                  - generic [ref=e174]: 2025-03-15 10:30:00
