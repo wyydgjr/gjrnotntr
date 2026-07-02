@@ -20,7 +20,15 @@
       <tbody>
         <tr v-for="(row, i) in items" :key="row.id || i">
           <td v-for="col in columns" :key="col.key">
-            <template v-if="col.render"><span v-html="col.render(row)"></span></template>
+            <!-- 安全渲染：优先使用 text 函数（纯文本），其次 render 函数需自行消毒 -->
+            <template v-if="col.render">
+              <span
+                v-if="col.badge || col.htmlClass"
+                :class="typeof col.htmlClass === 'function' ? col.htmlClass(row) : col.htmlClass"
+                v-text="col.render(row)"
+              />
+              <span v-else v-text="col.render(row)" />
+            </template>
             <template v-else>{{ row[col.key] ?? '-' }}</template>
           </td>
           <td v-if="$slots.actions" class="actions-cell">
@@ -42,9 +50,20 @@ defineProps({
 </script>
 
 <style scoped>
-.card { padding: 0; overflow-x: auto; }
-table { min-width: 600px; }
-.actions-cell { white-space: nowrap; }
-.actions-cell :deep(.btn) { margin-right: 6px; }
-.actions-cell :deep(.btn:last-child) { margin-right: 0; }
+.card {
+  padding: 0;
+  overflow-x: auto;
+}
+table {
+  min-width: 600px;
+}
+.actions-cell {
+  white-space: nowrap;
+}
+.actions-cell :deep(.btn) {
+  margin-right: 6px;
+}
+.actions-cell :deep(.btn:last-child) {
+  margin-right: 0;
+}
 </style>

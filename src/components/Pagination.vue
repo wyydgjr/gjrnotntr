@@ -5,14 +5,13 @@
       <button class="page-btn" :disabled="modelValue <= 1" @click="go(modelValue - 1)">‹</button>
       <template v-for="p in visiblePages" :key="p">
         <span v-if="p === '...'" class="page-ellipsis">…</span>
-        <button
-          v-else
-          class="page-btn"
-          :class="{ active: p === modelValue }"
-          @click="go(p)"
-        >{{ p }}</button>
+        <button v-else class="page-btn" :class="{ active: p === modelValue }" @click="go(p)">
+          {{ p }}
+        </button>
       </template>
-      <button class="page-btn" :disabled="modelValue >= totalPages" @click="go(modelValue + 1)">›</button>
+      <button class="page-btn" :disabled="modelValue >= totalPages" @click="go(modelValue + 1)">
+        ›
+      </button>
     </div>
   </div>
 </template>
@@ -62,8 +61,15 @@ function go(page) {
   justify-content: space-between;
   padding: 16px 0 4px;
 }
-.pagination-info { font-size: 13px; color: var(--text-secondary); }
-.pagination-btns { display: flex; align-items: center; gap: 4px; }
+.pagination-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.pagination-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .page-btn {
   min-width: 34px;
   height: 34px;
@@ -76,11 +82,24 @@ function go(page) {
   color: var(--text);
   cursor: pointer;
   font-size: 14px;
-  transition: all .15s;
+  transition: all 0.15s;
   padding: 0 8px;
 }
-.page-btn:hover:not(:disabled):not(.active) { border-color: var(--primary); color: var(--primary); }
-.page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-.page-btn:disabled { opacity: .4; cursor: not-allowed; }
-.page-ellipsis { padding: 0 6px; color: var(--text-secondary); }
+.page-btn:hover:not(:disabled):not(.active) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.page-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.page-ellipsis {
+  padding: 0 6px;
+  color: var(--text-secondary);
+}
 </style>

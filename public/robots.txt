@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /login
+Disallow: /register
+Disallow: /admin/login
+
+Sitemap: https://vestore.example.com/sitemap.xml

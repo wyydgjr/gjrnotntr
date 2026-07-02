@@ -2,11 +2,19 @@
   <div>
     <div class="page-header">
       <h2>订单管理</h2>
+      <button class="btn" @click="doExport">📥 导出Excel</button>
     </div>
 
-    <div style="margin-bottom: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+    <div
+      style="margin-bottom: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap"
+    >
       <SearchBar placeholder="搜索订单号或用户名..." @search="handleSearch" />
-      <select v-model="statusFilter" class="form-control" style="width: auto;" @change="handleFilter">
+      <select
+        v-model="statusFilter"
+        class="form-control"
+        style="width: auto"
+        @change="handleFilter"
+      >
         <option value="">全部状态</option>
         <option value="pending">待处理</option>
         <option value="shipped">已发货</option>
@@ -23,8 +31,20 @@
     >
       <template #actions="{ row }">
         <router-link :to="`/orders/${row.id}`" class="btn btn-sm">查看</router-link>
-        <button v-if="row.status === 'pending'" class="btn btn-sm btn-primary" @click="handleStatus(row, 'shipped')">发货</button>
-        <button v-if="row.status === 'pending' || row.status === 'shipped'" class="btn btn-sm btn-danger" @click="handleStatus(row, 'cancelled')">取消</button>
+        <button
+          v-if="row.status === 'pending'"
+          class="btn btn-sm btn-primary"
+          @click="handleStatus(row, 'shipped')"
+        >
+          发货
+        </button>
+        <button
+          v-if="row.status === 'pending' || row.status === 'shipped'"
+          class="btn btn-sm btn-danger"
+          @click="handleStatus(row, 'cancelled')"
+        >
+          取消
+        </button>
       </template>
     </DataTable>
 
@@ -45,6 +65,7 @@ import { useToastStore } from '../stores/toast'
 import DataTable from '../components/DataTable.vue'
 import SearchBar from '../components/SearchBar.vue'
 import Pagination from '../components/Pagination.vue'
+import { exportExcel, exportWord } from '../utils/export'
 
 const store = useResourceStore('orders', '/orders')
 const toast = useToastStore()
@@ -58,15 +79,41 @@ const statusMap = {
   completed: '已完成',
   cancelled: '已取消',
 }
+function doExport() {
+  exportExcel(
+    store.list.map((o) => ({
+      订单号: o.id,
+      用户: o.userName,
+      金额: o.total,
+      状态: statusMap[o.status] || o.status,
+      地址: o.address,
+      时间: o.createdAt,
+    })),
+    '订单管理',
+  )
+}
 
 const columns = [
   { key: 'id', label: '订单号' },
   { key: 'userName', label: '用户' },
   { key: 'total', label: '金额', render: (r) => `¥${r.total.toLocaleString()}` },
-  { key: 'status', label: '状态', render: (r) => {
-    const cls = r.status === 'pending' ? 'badge-pending' : r.status === 'shipped' ? 'badge-shipped' : r.status === 'completed' ? 'badge-completed' : 'badge-cancelled'
-    return `<span class="badge ${cls}">${statusMap[r.status] || r.status}</span>`
-  }},
+  {
+    key: 'status',
+    label: '状态',
+    badge: true,
+    htmlClass: (r) => {
+      const cls =
+        r.status === 'pending'
+          ? 'badge-pending'
+          : r.status === 'shipped'
+            ? 'badge-shipped'
+            : r.status === 'completed'
+              ? 'badge-completed'
+              : 'badge-cancelled'
+      return `badge ${cls}`
+    },
+    render: (r) => statusMap[r.status] || r.status,
+  },
   { key: 'createdAt', label: '创建时间' },
 ]
 

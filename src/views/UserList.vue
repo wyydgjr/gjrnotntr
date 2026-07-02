@@ -2,10 +2,13 @@
   <div>
     <div class="page-header">
       <h2>用户管理</h2>
-      <router-link to="/users/new" class="btn btn-primary">新增用户</router-link>
+      <div style="display: flex; gap: 10px">
+        <button class="btn" @click="doExport">📥 导出Excel</button>
+        <router-link to="/admin/users/new" class="btn btn-primary">新增用户</router-link>
+      </div>
     </div>
 
-    <div style="margin-bottom: 16px;">
+    <div style="margin-bottom: 16px">
       <SearchBar placeholder="搜索用户名或邮箱..." @search="handleSearch" />
     </div>
 
@@ -16,7 +19,7 @@
       empty-text="暂无用户数据"
     >
       <template #actions="{ row }">
-        <router-link :to="`/users/${row.id}/edit`" class="btn btn-sm">编辑</router-link>
+        <router-link :to="`/admin/users/${row.id}/edit`" class="btn btn-sm">编辑</router-link>
         <button class="btn btn-sm btn-danger" @click="handleDelete(row)">删除</button>
       </template>
     </DataTable>
@@ -38,6 +41,7 @@ import { useToastStore } from '../stores/toast'
 import DataTable from '../components/DataTable.vue'
 import SearchBar from '../components/SearchBar.vue'
 import Pagination from '../components/Pagination.vue'
+import { exportExcel } from '../utils/export'
 
 const store = useResourceStore('users', '/users')
 const toast = useToastStore()
@@ -48,8 +52,20 @@ const columns = [
   { key: 'id', label: 'ID' },
   { key: 'username', label: '用户名' },
   { key: 'email', label: '邮箱' },
-  { key: 'role', label: '角色', render: (r) => r.role === 'admin' ? '<span class="badge badge-admin">管理员</span>' : '<span class="badge badge-user">用户</span>' },
-  { key: 'status', label: '状态', render: (r) => r.status === 'active' ? '<span class="badge badge-active">启用</span>' : '<span class="badge badge-inactive">停用</span>' },
+  {
+    key: 'role',
+    label: '角色',
+    badge: true,
+    htmlClass: (r) => (r.role === 'admin' ? 'badge badge-admin' : 'badge badge-user'),
+    render: (r) => (r.role === 'admin' ? '管理员' : '用户'),
+  },
+  {
+    key: 'status',
+    label: '状态',
+    badge: true,
+    htmlClass: (r) => (r.status === 'active' ? 'badge badge-active' : 'badge badge-inactive'),
+    render: (r) => (r.status === 'active' ? '启用' : '停用'),
+  },
   { key: 'createdAt', label: '创建时间' },
 ]
 
@@ -74,5 +90,18 @@ async function handleDelete(row) {
   } catch {
     toast.show('删除失败', 'error')
   }
+}
+function doExport() {
+  exportExcel(
+    store.list.map((u) => ({
+      ID: u.id,
+      用户名: u.username,
+      邮箱: u.email,
+      角色: u.role === 'admin' ? '管理员' : '用户',
+      状态: u.status === 'active' ? '启用' : '停用',
+      创建时间: u.createdAt,
+    })),
+    '用户管理',
+  )
 }
 </script>

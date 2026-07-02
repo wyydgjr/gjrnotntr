@@ -2,10 +2,10 @@
   <div>
     <div class="page-header">
       <h2>分类管理</h2>
-      <router-link to="/categories/new" class="btn btn-primary">新增分类</router-link>
+      <router-link to="/admin/categories/new" class="btn btn-primary">新增分类</router-link>
     </div>
 
-    <div style="margin-bottom: 16px;">
+    <div style="margin-bottom: 16px">
       <SearchBar placeholder="搜索分类名称..." @search="handleSearch" />
     </div>
 
@@ -16,7 +16,7 @@
       empty-text="暂无分类数据"
     >
       <template #actions="{ row }">
-        <router-link :to="`/categories/${row.id}/edit`" class="btn btn-sm">编辑</router-link>
+        <router-link :to="`/admin/categories/${row.id}/edit`" class="btn btn-sm">编辑</router-link>
         <button class="btn btn-sm btn-danger" @click="handleDelete(row)">删除</button>
       </template>
     </DataTable>

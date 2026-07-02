@@ -4,21 +4,38 @@
       <h2>{{ isEdit ? '编辑用户' : '新增用户' }}</h2>
     </div>
 
-    <div class="card" style="max-width: 520px;">
+    <div class="card" style="max-width: 520px">
       <form @submit.prevent="handleSubmit">
         <div class="form-group">
           <label>用户名</label>
-          <input v-model="form.username" class="form-control" :class="{ error: errors.username }" required />
+          <input
+            v-model="form.username"
+            class="form-control"
+            :class="{ error: errors.username }"
+            required
+          />
           <p v-if="errors.username" class="form-error">{{ errors.username }}</p>
         </div>
         <div class="form-group">
           <label>邮箱</label>
-          <input v-model="form.email" class="form-control" type="email" :class="{ error: errors.email }" required />
+          <input
+            v-model="form.email"
+            class="form-control"
+            type="email"
+            :class="{ error: errors.email }"
+            required
+          />
           <p v-if="errors.email" class="form-error">{{ errors.email }}</p>
         </div>
         <div class="form-group" v-if="!isEdit">
           <label>密码</label>
-          <input v-model="form.password" class="form-control" type="password" :class="{ error: errors.password }" required />
+          <input
+            v-model="form.password"
+            class="form-control"
+            type="password"
+            :class="{ error: errors.password }"
+            required
+          />
           <p v-if="errors.password" class="form-error">{{ errors.password }}</p>
         </div>
         <div class="form-group">
@@ -35,9 +52,11 @@
             <option value="inactive">停用</option>
           </select>
         </div>
-        <div style="display: flex; gap: 10px; margin-top: 24px;">
-          <button type="submit" class="btn btn-primary" :disabled="submitting">{{ submitting ? '提交中...' : '保存' }}</button>
-          <router-link to="/users" class="btn">取消</router-link>
+        <div style="display: flex; gap: 10px; margin-top: 24px">
+          <button type="submit" class="btn btn-primary" :disabled="submitting">
+            {{ submitting ? '提交中...' : '保存' }}
+          </button>
+          <router-link to="/admin/users" class="btn">取消</router-link>
         </div>
       </form>
     </div>
@@ -71,10 +90,13 @@ onMounted(() => {
   if (isEdit.value) loadUser()
 })
 
-watch(() => route.params.id, () => {
-  if (route.params.id) loadUser()
-  else resetForm()
-})
+watch(
+  () => route.params.id,
+  () => {
+    if (route.params.id) loadUser()
+    else resetForm()
+  },
+)
 
 function validate() {
   const errs = {}
@@ -96,7 +118,7 @@ async function loadUser() {
     }
   } catch {
     toast.show('加载用户失败', 'error')
-    router.push('/users')
+    router.push('/admin/users')
   }
 }
 
@@ -113,7 +135,7 @@ async function handleSubmit() {
     if (isEdit.value && !payload.password) delete payload.password
     await store.save(payload)
     toast.show(isEdit.value ? '用户已更新' : '用户已创建', 'success')
-    router.push('/users')
+    router.push('/admin/users')
   } catch {
     toast.show('保存失败', 'error')
   } finally {

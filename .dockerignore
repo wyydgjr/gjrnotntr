@@ -1,0 +1,16 @@
+node_modules
+.git
+.gitignore
+*.md
+!README.md
+.vscode
+.idea
+e2e
+image
+audit-result.json
+enterprise-audit-report.md
+playwright.config.js
+vitest.config.js
+src/**/__tests__
+coverage
+test-results

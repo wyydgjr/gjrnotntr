@@ -1,0 +1,19 @@
+{
+  "name": "VeStore",
+  "short_name": "VeStore",
+  "description": "品质生活，从这里开始",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["shopping", "ecommerce"],
+  "lang": "zh-CN",
+  "dir": "ltr"
+}
