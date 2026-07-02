@@ -41,17 +41,19 @@ function safeRemove(key) {
 }
 
 export const useAuthStore = defineStore('auth', {
+  // 将 token 有效性缓存到 state 中，确保 getter 是响应式的
   state: () => ({
     user: safeGet('user'),
     adminUser: safeGet('admin_user'),
     /** @type {'user' | 'admin' | null} */
     activeRole: safeGet('active_role') || null,
+    _tokenValid: hasValidToken(),
   }),
 
   getters: {
-    isLoggedIn: (state) => hasValidToken() && state.activeRole !== null,
-    isAdmin: (state) => hasValidToken() && state.activeRole === 'admin',
-    isRegularUser: (state) => hasValidToken() && state.activeRole === 'user',
+    isLoggedIn: (state) => state._tokenValid && state.activeRole !== null,
+    isAdmin: (state) => state._tokenValid && state.activeRole === 'admin',
+    isRegularUser: (state) => state._tokenValid && state.activeRole === 'user',
     effectiveUser: (state) => state.adminUser || state.user,
     currentUser: (state) => (state.activeRole === 'admin' ? state.adminUser : state.user),
   },
@@ -74,6 +76,7 @@ export const useAuthStore = defineStore('auth', {
     _applyLogin(res, role) {
       setTokens(res.token, res.refreshToken, res.expiresIn)
       this.activeRole = role
+      this._tokenValid = true  // ← 触发响应式更新
       safeSet('active_role', role)
       const userData = res.user || null
       if (role === 'admin') {
@@ -96,6 +99,7 @@ export const useAuthStore = defineStore('auth', {
       const role = safeGet('active_role')
       if (role && hasValidToken()) {
         this.activeRole = role
+        this._tokenValid = true  // ← 触发响应式更新
         this.user = safeGet('user')
         this.adminUser = safeGet('admin_user')
       } else {
@@ -155,6 +159,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.adminUser = null
       this.activeRole = null
+      this._tokenValid = false  // ← 触发响应式更新，让导航栏立刻切换为"登录/注册"
       safeRemove('user')
       safeRemove('admin_user')
       safeRemove('active_role')

@@ -312,6 +312,45 @@ server.get('/api/dashboard/revenue', (_req, res) => {
   res.json({ months, values: months.map((m) => monthMap[m]) })
 })
 
+// ═══════════════════ 用户专属数据端点 ═══════════════════
+
+// 当前用户的订单
+server.get('/api/orders/my', (req, res) => {
+  const user = requireAuth(req, res)
+  if (!user) return
+  const myOrders = (db.orders || []).filter((o) => o.userId === user.id)
+  res.json(paginatedList(myOrders, req.query))
+})
+
+// 当前用户的优惠券
+server.get('/api/user/coupons', (req, res) => {
+  const user = requireAuth(req, res)
+  if (!user) return
+  const myCoupons = (db.user_coupons || []).filter((uc) => uc.userId === user.id)
+  // 关联优惠券详情
+  const enriched = myCoupons.map((uc) => {
+    const coupon = (db.coupons || []).find((c) => c.id === uc.couponId)
+    return { ...uc, coupon: coupon || null }
+  })
+  res.json(paginatedList(enriched, req.query))
+})
+
+// 当前用户的收藏
+server.get('/api/wishlist/my', (req, res) => {
+  const user = requireAuth(req, res)
+  if (!user) return
+  const myWishlist = (db.wishlist || []).filter((w) => w.userId === user.id)
+  res.json(paginatedList(myWishlist, req.query))
+})
+
+// 当前用户的地址
+server.get('/api/addresses/my', (req, res) => {
+  const user = requireAuth(req, res)
+  if (!user) return
+  const myAddrs = (db.addresses || []).filter((a) => a.userId === user.id)
+  res.json(paginatedList(myAddrs, req.query))
+})
+
 // ═══════════════════ CRUD 资源 ═══════════════════
 
 // 注意：orders 的 PUT 单独定义在后面（带权限校验，覆盖通用路由）

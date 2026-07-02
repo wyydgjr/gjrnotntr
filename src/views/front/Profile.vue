@@ -404,13 +404,25 @@ const stats = reactive({ orderCount: 0, wishlistCount: 0, couponCount: 0, addres
 async function loadStats() {
   try {
     const [ordersRes, wishlistRes, couponsRes, addressesRes] = await Promise.allSettled([
-      request.get('/orders/my'), request.get('/wishlist'),
-      request.get('/user/coupons'), request.get('/addresses'),
+      request.get('/orders'), request.get('/wishlist'),
+      request.get('/coupons'), request.get('/addresses'),
     ])
-    if (ordersRes.status === 'fulfilled') stats.orderCount = (ordersRes.value.list || ordersRes.value).length || 0
-    if (wishlistRes.status === 'fulfilled') stats.wishlistCount = (wishlistRes.value.list || wishlistRes.value).length || 0
-    if (couponsRes.status === 'fulfilled') stats.couponCount = (couponsRes.value.list || couponsRes.value).length || 0
-    if (addressesRes.status === 'fulfilled') stats.addressCount = (addressesRes.value.list || addressesRes.value).length || 0
+    if (ordersRes.status === 'fulfilled') {
+      const list = ordersRes.value.list || ordersRes.value || []
+      stats.orderCount = Array.isArray(list) ? list.length : 0
+    }
+    if (wishlistRes.status === 'fulfilled') {
+      const list = wishlistRes.value.list || wishlistRes.value || []
+      stats.wishlistCount = Array.isArray(list) ? list.length : 0
+    }
+    if (couponsRes.status === 'fulfilled') {
+      const list = couponsRes.value.list || couponsRes.value || []
+      stats.couponCount = Array.isArray(list) ? list.length : 0
+    }
+    if (addressesRes.status === 'fulfilled') {
+      const list = addressesRes.value.list || addressesRes.value || []
+      stats.addressCount = Array.isArray(list) ? list.length : 0
+    }
   } catch {}
 }
 
