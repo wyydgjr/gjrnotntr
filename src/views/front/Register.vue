@@ -7,19 +7,21 @@
         <p class="register-sub">{{ $t('auth.register') }}</p>
       </div>
 
-      <div v-if="error" class="register-error">{{ error }}</div>
+      <div class="register-error" v-if="error">{{ error }}</div>
 
       <form @submit.prevent="handleRegister">
         <div class="form-group">
-          <label>{{ $t('auth.username') }}</label>
+          <label>{{ $t('auth.username') }} <span class="required">*</span></label>
           <div class="input-wrap">
             <input
               v-model="form.username"
               class="form-control"
+              :class="{ 'form-control-error': fieldErrors.username }"
               :placeholder="$t('validation.minLength', { min: 2 })"
               required
             />
-            <span class="input-hint">{{ $t('validation.minLength', { min: 2 }) }}</span>
+            <span v-if="fieldErrors.username" class="field-error">{{ fieldErrors.username }}</span>
+            <span v-else class="input-hint">{{ $t('validation.minLength', { min: 2 }) }}</span>
           </div>
         </div>
         <div class="form-group">
@@ -28,9 +30,11 @@
             <input
               v-model="form.email"
               class="form-control"
+              :class="{ 'form-control-error': fieldErrors.email }"
               type="email"
               :placeholder="$t('auth.email')"
             />
+            <span v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</span>
           </div>
         </div>
         <div class="form-group">
@@ -80,24 +84,37 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useToastStore } from '../../stores/toast'
+import { useAuthStore } from '../../stores/auth'
 import { register as registerApi } from '../../api/auth'
+import { setTokens } from '../../api/request'
 
 const router = useRouter()
 const toast = useToastStore()
+const auth = useAuthStore()
 const { t } = useI18n()
 
 const form = ref({ username: '', email: '', password: '', confirm: '' })
 const loading = ref(false)
 const error = ref('')
+const fieldErrors = ref({ username: '', email: '' })
 
 async function handleRegister() {
   error.value = ''
+  fieldErrors.value = { username: '', email: '' }
   if (!form.value.username.trim()) {
     error.value = t('validation.required')
     return
   }
+  if (form.value.username.trim().length < 2) {
+    fieldErrors.value.username = t('validation.minLength', { min: 2 })
+    return
+  }
   if (form.value.password !== form.value.confirm) {
     error.value = t('validation.passwordMismatch')
+    return
+  }
+  if (form.value.password.length < 8) {
+    error.value = t('validation.passwordMinLength', { min: 8 })
     return
   }
   if (
@@ -110,15 +127,29 @@ async function handleRegister() {
   }
   loading.value = true
   try {
-    await registerApi({
-      username: form.value.username,
+    const res = await registerApi({
+      username: form.value.username.trim(),
       password: form.value.password,
-      email: form.value.email,
+      email: form.value.email.trim(),
     })
+    // 注册成功后自动登录：使用返回的 token 和 user 信息
+    if (res.token) {
+      setTokens(res.token, res.refreshToken, res.expiresIn || 7200)
+      auth.activeRole = 'user'
+      auth.user = res.user
+      // 持久化到 sessionStorage
+      try {
+        sessionStorage.setItem('ve_active_role', JSON.stringify('user'))
+        sessionStorage.setItem('ve_user', JSON.stringify(res.user))
+      } catch { /* ignore */ }
+    }
     toast.show(t('auth.registerSuccess'), 'success')
-    router.push('/login')
+    router.push('/')
   } catch (e) {
-    error.value = e.response?.data?.message || e.message || t('auth.loginFailed')
+    const msg = e.response?.data?.message || e.message || t('auth.loginFailed')
+    if (msg.includes('用户名')) fieldErrors.value.username = msg
+    else if (msg.includes('邮箱')) fieldErrors.value.email = msg
+    else error.value = msg
   } finally {
     loading.value = false
   }
@@ -193,6 +224,17 @@ async function handleRegister() {
   border-radius: 6px;
   margin-bottom: 16px;
   text-align: center;
+}
+.field-error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: 2px;
+}
+.form-control-error {
+  border-color: var(--danger) !important;
+}
+.required {
+  color: var(--danger);
 }
 .register-footer {
   text-align: center;

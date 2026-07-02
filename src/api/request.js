@@ -184,7 +184,7 @@ function _redirectToLogin() {
   } catch { /* ignore */ }
 
   try {
-    import('../router').then(({ default: router }) => {
+    import('../router/front-router').then(({ default: router }) => {
       const currentPath = window.location.pathname
       if (currentPath.startsWith('/admin')) {
         router.push('/admin/login')

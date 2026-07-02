@@ -47,15 +47,9 @@
             <span v-if="cart.count > 0" class="cart-badge">{{ cart.count }}</span>
           </router-link>
           <template v-if="auth.isLoggedIn">
+            <router-link to="/profile" class="btn btn-sm">{{ $t('nav.profile') }}</router-link>
             <router-link to="/wishlist" class="btn btn-sm">{{ $t('nav.wishlist') }}</router-link>
             <router-link to="/orders" class="btn btn-sm">{{ $t('nav.orders') }}</router-link>
-            <router-link to="/coupons" class="btn btn-sm">{{ $t('nav.coupons') }}</router-link>
-            <router-link to="/after-sales" class="btn btn-sm">{{
-              $t('nav.afterSales')
-            }}</router-link>
-            <router-link to="/invoices" class="btn btn-sm">{{ $t('nav.invoices') }}</router-link>
-            <router-link to="/addresses" class="btn btn-sm">{{ $t('nav.addresses') }}</router-link>
-            <router-link to="/chat" class="btn btn-sm">{{ $t('nav.chat') }}</router-link>
             <span class="user-greeting">{{ auth.effectiveUser?.username }}</span>
             <button class="btn btn-sm" @click="handleLogout">{{ $t('auth.logout') }}</button>
           </template>

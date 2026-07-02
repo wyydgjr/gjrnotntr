@@ -10,8 +10,19 @@ const multer = require('multer')
 const isProduction = process.env.NODE_ENV === 'production'
 
 const server = jsonServer.create()
-const router = jsonServer.router(path.join(__dirname, 'db.json'))
+const DB_PATH = path.join(__dirname, 'db.json')
+const router = jsonServer.router(DB_PATH)
 const middlewares = jsonServer.defaults()
+
+// 确保 db.json 写入一定生效（json-server 0.17.x 的 write() 可能不稳定）
+function saveDb() {
+  try {
+    const state = router.db.getState()
+    fs.writeFileSync(DB_PATH, JSON.stringify(state, null, 2), 'utf-8')
+  } catch (e) {
+    console.error('Failed to persist db.json:', e.message)
+  }
+}
 
 // ── 上传目录配置 ──
 const UPLOADS_DIR = isProduction
@@ -225,7 +236,7 @@ server.post('/api/auth/register', (req, res) => {
     createdAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
   }
   db.users.push(newUser)
-  router.db.write()
+  saveDb()
   const { password: _, ...safeUser } = newUser
   res.json({
     token: 'mock-jwt-token-' + newUser.id,
@@ -256,7 +267,7 @@ server.put('/api/auth/profile', (req, res) => {
   const { password, ...rest } = req.body
   Object.assign(db.users[idx], rest)
   if (password) db.users[idx].password = hashPassword(password)
-  router.db.write()
+  saveDb()
   const { password: _, ...safeUser } = db.users[idx]
   res.json({ user: safeUser })
 })
@@ -335,7 +346,7 @@ server.post('/api/orders', (req, res) => {
     createdAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
   }
   db.orders.push(order)
-  router.db.write()
+  saveDb()
   res.json(order)
 })
 
@@ -359,7 +370,7 @@ server.put('/api/cart', (req, res) => {
   const idx = db.carts.findIndex(c => c.userId === userId)
   if (idx >= 0) db.carts[idx].items = req.body
   else db.carts.push({ userId, items: req.body })
-  router.db.write()
+  saveDb()
   res.json({ ok: true })
 })
 
@@ -384,7 +395,7 @@ server.post('/api/addresses', (req, res) => {
   const addr = { id: maxId + 1, userId: Number(id), ...req.body, createdAt: new Date().toISOString() }
   if (addr.isDefault) db.addresses.forEach(a => { if (a.userId === Number(id)) a.isDefault = false })
   db.addresses.push(addr)
-  router.db.write()
+  saveDb()
   res.json(addr)
 })
 
@@ -396,7 +407,7 @@ server.put('/api/addresses/:id', (req, res) => {
   Object.assign(db.addresses[idx], req.body)
   if (req.body.isDefault) db.addresses.forEach(a => { if (a.userId === db.addresses[idx].userId) a.isDefault = false })
   db.addresses[idx].isDefault = true
-  router.db.write()
+  saveDb()
   res.json(db.addresses[idx])
 })
 
@@ -404,7 +415,7 @@ server.delete('/api/addresses/:id', (req, res) => {
   const db = router.db.getState()
   if (!db.addresses) db.addresses = []
   db.addresses = db.addresses.filter(a => a.id !== Number(req.params.id))
-  router.db.write()
+  saveDb()
   res.json({ ok: true })
 })
 
@@ -429,11 +440,11 @@ server.post('/api/wishlist/toggle', (req, res) => {
   const idx = db.wishlist.findIndex(w => w.userId === userId && w.productId === productId)
   if (idx >= 0) {
     db.wishlist.splice(idx, 1)
-    router.db.write()
+    saveDb()
     return res.json({ wishlisted: false })
   }
   db.wishlist.push({ userId, productId, createdAt: new Date().toISOString() })
-  router.db.write()
+  saveDb()
   res.json({ wishlisted: true })
 })
 
@@ -447,7 +458,7 @@ server.post('/api/reviews', (req, res) => {
   const maxId = db.reviews.reduce((m, r) => Math.max(m, r.id), 0)
   const review = { id: maxId + 1, userId: Number(id), ...req.body, createdAt: new Date().toISOString() }
   db.reviews.push(review)
-  router.db.write()
+  saveDb()
   res.json(review)
 })
 
@@ -462,7 +473,7 @@ server.delete('/api/reviews/:id', (req, res) => {
   const db = router.db.getState()
   if (!db.reviews) db.reviews = []
   db.reviews = db.reviews.filter(r => r.id !== Number(req.params.id))
-  router.db.write()
+  saveDb()
   res.json({ ok: true })
 })
 
@@ -485,11 +496,11 @@ server.post('/api/coupons', (req, res) => {
   const db = router.db.getState(); if (!db.coupons) db.coupons = []
   const maxId = db.coupons.reduce((m, c) => Math.max(m, c.id), 0)
   const c = { id: maxId + 1, ...req.body, createdAt: new Date().toISOString() }
-  db.coupons.push(c); router.db.write(); res.json(c)
+  db.coupons.push(c); saveDb(); res.json(c)
 })
 server.delete('/api/coupons/:id', (req, res) => {
   const db = router.db.getState(); if (!db.coupons) db.coupons = []
-  db.coupons = db.coupons.filter(c => c.id !== Number(req.params.id)); router.db.write(); res.json({ ok: true })
+  db.coupons = db.coupons.filter(c => c.id !== Number(req.params.id)); saveDb(); res.json({ ok: true })
 })
 server.post('/api/coupons/claim', (req, res) => {
   const auth = req.headers.authorization; if (!auth) return res.status(401).json({ message: '未登录' })
@@ -500,7 +511,7 @@ server.post('/api/coupons/claim', (req, res) => {
   if (db.user_coupons.filter(c => c.userId === uid && c.couponId === req.body.couponId).length >= (coupon.limit || 1))
     return res.status(400).json({ message: '已达领取上限' })
   db.user_coupons.push({ userId: uid, couponId: req.body.couponId, used: false, claimedAt: new Date().toISOString() })
-  router.db.write(); res.json({ ok: true })
+  saveDb(); res.json({ ok: true })
 })
 server.get('/api/user/coupons', (req, res) => {
   const auth = req.headers.authorization; if (!auth) return res.status(401).json({ message: '未登录' })
@@ -519,7 +530,7 @@ server.post('/api/after-sales', (req, res) => {
   const db = router.db.getState(); if (!db.after_sales) db.after_sales = []
   const maxId = db.after_sales.reduce((m, a) => Math.max(m, a.id), 0)
   const as = { id: maxId + 1, userId: uid, status: 'pending', ...req.body, createdAt: new Date().toISOString() }
-  db.after_sales.push(as); router.db.write(); res.json(as)
+  db.after_sales.push(as); saveDb(); res.json(as)
 })
 server.get('/api/after-sales/my', (req, res) => {
   const auth = req.headers.authorization; if (!auth) return res.status(401).json({ message: '未登录' })
@@ -534,7 +545,7 @@ server.put('/api/after-sales/:id', (req, res) => {
   const db = router.db.getState(); if (!db.after_sales) db.after_sales = []
   const idx = db.after_sales.findIndex(a => a.id === Number(req.params.id))
   if (idx < 0) return res.status(404).json({ message: '不存在' })
-  Object.assign(db.after_sales[idx], req.body); router.db.write(); res.json(db.after_sales[idx])
+  Object.assign(db.after_sales[idx], req.body); saveDb(); res.json(db.after_sales[idx])
 })
 
 // --- Invoice API ---
@@ -544,7 +555,7 @@ server.post('/api/invoices', (req, res) => {
   const db = router.db.getState(); if (!db.invoices) db.invoices = []
   const maxId = db.invoices.reduce((m, i) => Math.max(m, i.id), 0)
   const inv = { id: maxId + 1, userId: uid, status: 'pending', ...req.body, createdAt: new Date().toISOString() }
-  db.invoices.push(inv); router.db.write(); res.json(inv)
+  db.invoices.push(inv); saveDb(); res.json(inv)
 })
 server.get('/api/invoices/my', (req, res) => {
   const auth = req.headers.authorization; if (!auth) return res.status(401).json({ message: '未登录' })
@@ -558,7 +569,7 @@ server.put('/api/invoices/:id', (req, res) => {
   const db = router.db.getState(); if (!db.invoices) db.invoices = []
   const idx = db.invoices.findIndex(i => i.id === Number(req.params.id))
   if (idx < 0) return res.status(404).json({ message: '不存在' })
-  Object.assign(db.invoices[idx], req.body); router.db.write(); res.json(db.invoices[idx])
+  Object.assign(db.invoices[idx], req.body); saveDb(); res.json(db.invoices[idx])
 })
 
 // --- Chat API ---
@@ -569,7 +580,7 @@ server.post('/api/chat/messages', (req, res) => {
   const db = router.db.getState(); if (!db.chat_messages) db.chat_messages = []
   const maxId = db.chat_messages.reduce((m, msg) => Math.max(m, msg.id), 0)
   const msg = { id: maxId + 1, ...req.body, createdAt: new Date().toISOString() }
-  db.chat_messages.push(msg); router.db.write(); res.json(msg)
+  db.chat_messages.push(msg); saveDb(); res.json(msg)
 })
 
 // --- Spec Templates API ---
@@ -579,11 +590,11 @@ server.get('/api/spec-templates', (req, res) => {
 server.post('/api/spec-templates', (req, res) => {
   const db = router.db.getState(); if (!db.spec_templates) db.spec_templates = []
   const maxId = db.spec_templates.reduce((m, s) => Math.max(m, s.id), 0)
-  const s = { id: maxId + 1, ...req.body }; db.spec_templates.push(s); router.db.write(); res.json(s)
+  const s = { id: maxId + 1, ...req.body }; db.spec_templates.push(s); saveDb(); res.json(s)
 })
 server.delete('/api/spec-templates/:id', (req, res) => {
   const db = router.db.getState(); if (!db.spec_templates) db.spec_templates = []
-  db.spec_templates = db.spec_templates.filter(s => s.id !== Number(req.params.id)); router.db.write(); res.json({ ok: true })
+  db.spec_templates = db.spec_templates.filter(s => s.id !== Number(req.params.id)); saveDb(); res.json({ ok: true })
 })
 
 // --- Purchase Order API ---
@@ -594,13 +605,13 @@ server.post('/api/purchase-orders', (req, res) => {
   const db = router.db.getState(); if (!db.purchase_orders) db.purchase_orders = []
   const maxId = db.purchase_orders.reduce((m, p) => Math.max(m, p.id), 0)
   const po = { id: maxId + 1, status: 'pending', ...req.body, createdAt: new Date().toISOString() }
-  db.purchase_orders.push(po); router.db.write(); res.json(po)
+  db.purchase_orders.push(po); saveDb(); res.json(po)
 })
 server.put('/api/purchase-orders/:id', (req, res) => {
   const db = router.db.getState(); if (!db.purchase_orders) db.purchase_orders = []
   const idx = db.purchase_orders.findIndex(p => p.id === Number(req.params.id))
   if (idx < 0) return res.status(404).json({ message: '不存在' })
-  Object.assign(db.purchase_orders[idx], req.body); router.db.write(); res.json(db.purchase_orders[idx])
+  Object.assign(db.purchase_orders[idx], req.body); saveDb(); res.json(db.purchase_orders[idx])
 })
 
 // --- Supplier API ---
@@ -610,11 +621,11 @@ server.get('/api/suppliers', (req, res) => {
 server.post('/api/suppliers', (req, res) => {
   const db = router.db.getState(); if (!db.suppliers) db.suppliers = []
   const maxId = db.suppliers.reduce((m, s) => Math.max(m, s.id), 0)
-  const sup = { id: maxId + 1, ...req.body }; db.suppliers.push(sup); router.db.write(); res.json(sup)
+  const sup = { id: maxId + 1, ...req.body }; db.suppliers.push(sup); saveDb(); res.json(sup)
 })
 server.delete('/api/suppliers/:id', (req, res) => {
   const db = router.db.getState(); if (!db.suppliers) db.suppliers = []
-  db.suppliers = db.suppliers.filter(s => s.id !== Number(req.params.id)); router.db.write(); res.json({ ok: true })
+  db.suppliers = db.suppliers.filter(s => s.id !== Number(req.params.id)); saveDb(); res.json({ ok: true })
 })
 
 // --- Audit Log API ---
@@ -626,7 +637,7 @@ server.post('/api/audit-logs', (req, res) => {
   const db = router.db.getState(); if (!db.audit_logs) db.audit_logs = []
   const maxId = db.audit_logs.reduce((m, l) => Math.max(m, l.id), 0)
   db.audit_logs.push({ id: maxId + 1, ...req.body, createdAt: new Date().toISOString() })
-  router.db.write(); res.json({ ok: true })
+  saveDb(); res.json({ ok: true })
 })
 
 // ── 库存日志 API ──
@@ -643,7 +654,7 @@ server.post('/api/stock-logs', (req, res) => {
   const maxId = db.stock_logs.reduce((m, l) => Math.max(m, l.id), 0)
   const log = { id: maxId + 1, ...req.body }
   db.stock_logs.push(log)
-  router.db.write()
+  saveDb()
   res.json(log)
 })
 
@@ -758,7 +769,7 @@ server.post('/api/roles', (req, res) => {
   const maxId = db.roles.reduce((m, r) => Math.max(m, r.id), 0)
   const role = { id: maxId + 1, ...req.body, createdAt: new Date().toISOString().slice(0, 10) }
   db.roles.push(role)
-  router.db.write()
+  saveDb()
   res.json(role)
 })
 server.put('/api/roles/:id', (req, res) => {
@@ -766,14 +777,14 @@ server.put('/api/roles/:id', (req, res) => {
   const idx = db.roles.findIndex(r => r.id === Number(req.params.id))
   if (idx < 0) return res.status(404).json({ message: '不存在' })
   Object.assign(db.roles[idx], req.body)
-  router.db.write()
+  saveDb()
   res.json(db.roles[idx])
 })
 server.delete('/api/roles/:id', (req, res) => {
   const db = router.db.getState()
   if (!db.roles) db.roles = []
   db.roles = db.roles.filter(r => r.id !== Number(req.params.id))
-  router.db.write()
+  saveDb()
   res.json({ ok: true })
 })
 
@@ -787,7 +798,7 @@ server.post('/api/db/restore', (req, res) => {
   const { resource, data } = req.body
   if (!resource || !Array.isArray(data)) return res.status(400).json({ message: '参数错误' })
   db[resource] = data
-  router.db.write()
+  saveDb()
   res.json({ ok: true })
 })
 server.post('/api/db/reset', (req, res) => {
@@ -813,7 +824,7 @@ server.post('/api/db/reset', (req, res) => {
   db.stock_logs = []
   db.staff = []
   db.spec_templates = []
-  router.db.write()
+  saveDb()
   res.json({ ok: true })
 })
 

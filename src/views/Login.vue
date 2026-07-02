@@ -39,7 +39,7 @@
         <router-link to="/register" class="login-link">{{
           $t('auth.noAccount') + ' ' + $t('auth.register')
         }}</router-link>
-        <router-link to="/admin/login" class="login-link">{{ $t('nav.dashboard') }}</router-link>
+        <a href="http://localhost:5174/admin/login" class="login-link">{{ $t('nav.dashboard') }}</a>
       </div>
       <div class="login-footer">
         <span>VeStore</span>
@@ -89,7 +89,7 @@ async function onSubmit() {
     await auth.login({ username: form.username, password: form.password })
     if (auth.user?.role === 'admin') {
       error.value = '管理员请使用后台登录入口'
-      auth.userLogout()
+      auth.logout()
       return
     }
     router.push('/')

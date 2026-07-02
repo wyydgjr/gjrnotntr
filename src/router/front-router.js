@@ -35,6 +35,13 @@ const routes = [
     component: () => import('../views/front/Register.vue'),
     meta: { guest: true, title: '注册 - VeStore' },
   },
+  // 管理后台入口：前台的 /admin/* 路由全部显示友好提示，避免 404 触发 401 重定向死循环
+  {
+    path: '/admin/:pathMatch(.*)*',
+    name: 'AdminRedirect',
+    component: () => import('../views/AdminPlaceholder.vue'),
+    meta: { guest: true, title: '管理后台 - VeStore' },
+  },
   {
     path: '/',
     component: () => import('../layouts/FrontLayout.vue'),
@@ -54,6 +61,7 @@ const routes = [
       { path: 'after-sales', name: 'FrontAfterSales', component: () => import('../views/front/AfterSales.vue'), meta: { requiresAuth: true } },
       { path: 'invoices', name: 'FrontInvoices', component: () => import('../views/front/Invoices.vue'), meta: { requiresAuth: true } },
       { path: 'chat', name: 'FrontChat', component: () => import('../views/front/Chat.vue'), meta: { requiresAuth: true } },
+      { path: 'profile', name: 'FrontProfile', component: () => import('../views/front/Profile.vue'), meta: { requiresAuth: true, title: '个人中心 - VeStore' } },
       // 前台 404 兜底
       { path: ':pathMatch(.*)*', name: 'FrontNotFound', component: () => import('../views/NotFound.vue'), meta: { title: '404 - VeStore' } },
     ],
