@@ -8,8 +8,6 @@
     "mock": "node mock-server.cjs",
     "start": "node mock-server.cjs",
     "build": "vite build",
-    "build:front": "vite build",
-    "build:admin": "vite build --config vite-admin.config.js",
     "preview": "vite preview",
     "lint": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{js,vue,css}\"",
