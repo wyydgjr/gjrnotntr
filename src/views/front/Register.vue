@@ -85,8 +85,6 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useToastStore } from '../../stores/toast'
 import { useAuthStore } from '../../stores/auth'
-import { register as registerApi } from '../../api/auth'
-import { setTokens } from '../../api/request'
 
 const router = useRouter()
 const toast = useToastStore()
@@ -127,22 +125,12 @@ async function handleRegister() {
   }
   loading.value = true
   try {
-    const res = await registerApi({
+    // 使用 auth store 统一方法：注册 + 自动登录
+    await auth.registerAndLogin({
       username: form.value.username.trim(),
       password: form.value.password,
       email: form.value.email.trim(),
     })
-    // 注册成功后自动登录：使用返回的 token 和 user 信息
-    if (res.token) {
-      setTokens(res.token, res.refreshToken, res.expiresIn || 7200)
-      auth.activeRole = 'user'
-      auth.user = res.user
-      // 持久化到 sessionStorage
-      try {
-        sessionStorage.setItem('ve_active_role', JSON.stringify('user'))
-        sessionStorage.setItem('ve_user', JSON.stringify(res.user))
-      } catch { /* ignore */ }
-    }
     toast.show(t('auth.registerSuccess'), 'success')
     router.push('/')
   } catch (e) {

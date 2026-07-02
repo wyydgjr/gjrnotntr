@@ -7,6 +7,9 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const server = express()
 
+// ── Vercel 环境判断 ──
+const isVercel = !!process.env.VERCEL
+
 // ── 安全：密码哈希（与 mock-server.cjs 保持一致） ──
 function hashPassword(password) {
   return crypto.createHash('md5').update(password).digest('hex')
@@ -20,19 +23,42 @@ function verifyPassword(password, storedHash) {
 }
 
 // ── 数据持久化 ──
+// Vercel Serverless: 使用 /tmp 目录（可写但实例间不共享）
+// 本地开发: 使用项目根目录的 db.json
+const DB_PATH = isVercel
+  ? path.join('/tmp', 'db.json')
+  : path.join(__dirname, '..', 'db.json')
+
+const SEED_PATH = path.join(__dirname, '..', 'db.json')
+
+function emptyDb() {
+  return { users: [], products: [], categories: [], orders: [], carts: [], addresses: [], wishlist: [], reviews: [], coupons: [], user_coupons: [], after_sales: [], invoices: [], chat_messages: [], spec_templates: [], purchase_orders: [], suppliers: [], audit_logs: [] }
+}
+
 function loadDb() {
   try {
-    return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'db.json'), 'utf-8'))
+    // Vercel 上优先从 /tmp 读取（热启动保留数据）
+    if (fs.existsSync(DB_PATH)) {
+      return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'))
+    }
+    // 冷启动：从种子文件复制到 /tmp
+    if (isVercel && fs.existsSync(SEED_PATH)) {
+      const seed = JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8'))
+      fs.writeFileSync(DB_PATH, JSON.stringify(seed, null, 2), 'utf-8')
+      return seed
+    }
+    // 本地开发：直接读 db.json
+    return JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8'))
   } catch (_) {
-    return { users: [], products: [], categories: [], orders: [], carts: [], addresses: [], wishlist: [], reviews: [], coupons: [], user_coupons: [], after_sales: [], invoices: [], chat_messages: [], spec_templates: [], purchase_orders: [], suppliers: [], audit_logs: [] }
+    return emptyDb()
   }
 }
 
 function saveDb(db) {
   try {
-    fs.writeFileSync(path.join(__dirname, '..', 'db.json'), JSON.stringify(db, null, 2), 'utf-8')
-  } catch (_) {
-    // Vercel 无状态环境，静默失败
+    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), 'utf-8')
+  } catch (e) {
+    console.error('saveDb failed:', e.message)
   }
 }
 

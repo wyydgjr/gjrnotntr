@@ -60,21 +60,35 @@ export const useAuthStore = defineStore('auth', {
     // ── 普通用户登录 ──
     async login(credentials) {
       const res = await loginApi(credentials)
+      this._applyLogin(res, 'user')
+    },
+
+    // ── 注册后自动登录 ──
+    async registerAndLogin(registerData) {
+      const { register: registerApi } = await import('../api/auth')
+      const res = await registerApi(registerData)
+      this._applyLogin(res, 'user')
+    },
+
+    // ── 内部：应用登录响应 ──
+    _applyLogin(res, role) {
       setTokens(res.token, res.refreshToken, res.expiresIn)
-      this.activeRole = 'user'
-      safeSet('active_role', 'user')
-      this.user = res.user || null
-      safeSet('user', this.user)
+      this.activeRole = role
+      safeSet('active_role', role)
+      const userData = res.user || null
+      if (role === 'admin') {
+        this.adminUser = userData
+        safeSet('admin_user', userData)
+      } else {
+        this.user = userData
+        safeSet('user', userData)
+      }
     },
 
     // ── 管理员登录 ──
     async adminLogin(credentials) {
       const res = await adminLoginApi(credentials)
-      setTokens(res.token, res.refreshToken, res.expiresIn)
-      this.activeRole = 'admin'
-      safeSet('active_role', 'admin')
-      this.adminUser = res.user || null
-      safeSet('admin_user', this.adminUser)
+      this._applyLogin(res, 'admin')
     },
 
     // ── 初始化认证状态（应用启动时调用） ──
