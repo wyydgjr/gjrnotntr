@@ -92,7 +92,8 @@ async function onSubmit() {
       auth.logout()
       return
     }
-    router.push('/')
+    // 登录成功后跳转到个人主页
+    router.push('/profile')
   } catch (e) {
     error.value = e.response?.data?.message || e.message || '登录失败，请重试'
   } finally {

@@ -70,12 +70,17 @@ server.use(express.json())
 server.use((req, res, next) => {
   const allowedOrigins = [
     'http://localhost:5173',
+    'http://localhost:5174',
     'http://localhost:3001',
     'https://gjrnotntr.vercel.app',
     'https://gjrnotntr-admin.vercel.app',
+    'https://ve-admin-jade.vercel.app',
   ]
   const origin = req.headers.origin
   if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin)
+  } else if (origin) {
+    // 允许任何 vercel.app 子域名（开发/预览部署）
     res.header('Access-Control-Allow-Origin', origin)
   }
   res.header('Access-Control-Allow-Credentials', 'true')

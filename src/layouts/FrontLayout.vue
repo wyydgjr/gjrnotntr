@@ -159,6 +159,8 @@ function handleClickOutside(e) {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  // 确保每次 FrontLayout 挂载时重新从 sessionStorage 初始化认证状态
+  auth.initFromStorage()
 })
 
 onUnmounted(() => {

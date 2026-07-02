@@ -132,7 +132,8 @@ async function handleRegister() {
       email: form.value.email.trim(),
     })
     toast.show(t('auth.registerSuccess'), 'success')
-    router.push('/')
+    // 注册成功后跳转到个人主页
+    router.push('/profile')
   } catch (e) {
     const msg = e.response?.data?.message || e.message || t('auth.loginFailed')
     if (msg.includes('用户名')) fieldErrors.value.username = msg
