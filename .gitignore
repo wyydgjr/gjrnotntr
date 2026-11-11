@@ -1,0 +1,19 @@
+﻿node_modules/
+dist/
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db
+venv/
+__pycache__/
+*.pyc
+
+# 临时产物目录（含数据库备份，禁止提交）
+temp/
+# 数据库备份文件（保留 docs/database.sql 设计脚本）
+*_backup*.sql
+db_backup/
+# 依赖锁文件可选保留，构建缓存排除
+.vite/
+coverage/

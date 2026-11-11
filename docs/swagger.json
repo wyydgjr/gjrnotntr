@@ -1,0 +1,4075 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "云商优选 · 简易电商后台管理系统 API",
+    "version": "1.0.0",
+    "description": "全栈项目开发前后端实训（选题 D：简易电商后台）后端接口规范。\n\n技术栈：Node.js + Express + MySQL 8.0 + JWT + RBAC（Vue3 前端配套）。\n\n**统一响应格式**：`{ code, message, data }`，`code = 0` 成功，非 0 与 HTTP 语义一致（400 参数错误、401 未登录、403 无权限、404 不存在、500 服务器错误）。\n\n**鉴权方式**：先调用 `POST /auth/login` 获取 JWT，再在请求头携带 `Authorization: Bearer <token>`。\n\n**默认账号**：admin / admin123（管理员）、user / user123（普通用户）。\n\n**接口规模**：5 大业务模块 37 个接口 + 1 个健康检查，共 38 个。",
+    "contact": {
+      "name": "开发人：葛杰睿（学号 240200154）"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "本地开发环境（Express 默认端口 3000）"
+    }
+  ],
+  "tags": [
+    {
+      "name": "健康检查 / Health",
+      "description": "服务可用性探测"
+    },
+    {
+      "name": "认证 / Auth",
+      "description": "注册、登录、个人信息、改密改昵称（JWT + bcrypt）"
+    },
+    {
+      "name": "商品 / Products",
+      "description": "商品列表/详情/增删改/上下架/分类，普通用户只读上架商品"
+    },
+    {
+      "name": "订单 / Orders",
+      "description": "下单、订单列表、状态机流转、支付、确认收货、归档、备注、超时取消"
+    },
+    {
+      "name": "收货地址 / Addresses",
+      "description": "个人地址簿 CRUD 与默认地址维护，全部需登录"
+    },
+    {
+      "name": "统计 / Stats",
+      "description": "管理员看板：总览、分类占比、销售/订单趋势、状态分布、畅销 Top5、低库存"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "登录接口返回的 JWT，格式：`Authorization: Bearer <token>`"
+      }
+    },
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "description": "统一响应结构：code=0 表示成功，非 0 与 HTTP 语义一致",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "业务状态码，0 成功",
+            "example": 0
+          },
+          "message": {
+            "type": "string",
+            "description": "提示信息",
+            "example": "success"
+          },
+          "data": {
+            "nullable": true,
+            "description": "业务数据，不同接口结构不同"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "example": 10
+          },
+          "total": {
+            "type": "integer",
+            "example": 31
+          }
+        }
+      },
+      "UserBrief": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "example": "admin"
+          },
+          "nickname": {
+            "type": "string",
+            "example": "管理员"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "user"
+            ],
+            "example": "admin"
+          }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "example": "admin"
+          },
+          "nickname": {
+            "type": "string",
+            "example": "管理员"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "user"
+            ],
+            "example": "admin"
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-11-02 10:00:00"
+          }
+        }
+      },
+      "LoginResult": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT 令牌，后续请求放入 Authorization: Bearer <token>"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserBrief"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "无线机械键盘"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "87键 三模热插拔"
+          },
+          "price": {
+            "type": "string",
+            "description": "DECIMAL 以字符串返回，保留两位小数",
+            "example": "299.00"
+          },
+          "stock": {
+            "type": "integer",
+            "example": 50
+          },
+          "category": {
+            "type": "string",
+            "example": "数码外设"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "on",
+              "off"
+            ],
+            "example": "on"
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-11-02 10:00:00"
+          },
+          "updated_at": {
+            "type": "string",
+            "example": "2026-11-02 10:00:00"
+          },
+          "sales_count": {
+            "type": "integer",
+            "description": "累计已售数量（剔除已取消订单），仅列表接口返回",
+            "example": 12
+          }
+        }
+      },
+      "ProductListData": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "sort": {
+            "type": "string",
+            "example": "newest"
+          }
+        }
+      },
+      "CategoryRatioItem": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "example": "数码外设"
+          },
+          "count": {
+            "type": "integer",
+            "example": 7
+          }
+        }
+      },
+      "OrderItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "product_name": {
+            "type": "string",
+            "description": "商品名称快照",
+            "example": "无线机械键盘"
+          },
+          "price": {
+            "type": "string",
+            "description": "成交单价快照",
+            "example": "299.00"
+          },
+          "quantity": {
+            "type": "integer",
+            "example": 2
+          },
+          "subtotal": {
+            "type": "string",
+            "example": "598.00"
+          }
+        }
+      },
+      "OrderListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 12
+          },
+          "order_no": {
+            "type": "string",
+            "example": "20261111103000123456"
+          },
+          "user_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "buyer": {
+            "type": "string",
+            "description": "下单用户名，仅管理员列表返回",
+            "example": "admin"
+          },
+          "total_amount": {
+            "type": "string",
+            "example": "598.00"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid",
+              "shipped",
+              "completed",
+              "cancelled"
+            ],
+            "example": "pending"
+          },
+          "receiver_name": {
+            "type": "string",
+            "example": "张三"
+          },
+          "receiver_phone": {
+            "type": "string",
+            "example": "13800000000"
+          },
+          "receiver_address": {
+            "type": "string",
+            "example": "北京市朝阳区xx路1号"
+          },
+          "express_company": {
+            "type": "string",
+            "nullable": true,
+            "example": "顺丰速运"
+          },
+          "express_no": {
+            "type": "string",
+            "nullable": true,
+            "example": "SF1234567890"
+          },
+          "shipped_at": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-11-11 12:00:00"
+          },
+          "remark": {
+            "type": "string",
+            "nullable": true,
+            "example": "工作日送达"
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-11-11 10:30:00"
+          },
+          "is_archived": {
+            "type": "integer",
+            "description": "1=已归档（默认列表隐藏，数据保留）",
+            "example": 0
+          },
+          "pay_deadline": {
+            "type": "string",
+            "description": "支付截止时间 = 下单时间 + 30 分钟",
+            "example": "2026-11-11 11:00:00"
+          },
+          "pay_remain_seconds": {
+            "type": "integer",
+            "nullable": true,
+            "description": "剩余支付秒数，仅 pending 有值，其余状态为 null",
+            "example": 1750
+          }
+        }
+      },
+      "OrderDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/OrderListItem"
+          }
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItem"
+            }
+          }
+        }
+      },
+      "OrderListData": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderListItem"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "archived": {
+            "type": "integer",
+            "description": "1=当前查询已归档，0=未归档",
+            "example": 0
+          }
+        }
+      },
+      "MyOrderListData": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderListItem"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "CreateOrderResult": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "integer",
+            "example": 12
+          },
+          "orderNo": {
+            "type": "string",
+            "example": "20261111103000123456"
+          },
+          "totalAmount": {
+            "type": "string",
+            "example": "598.00"
+          }
+        }
+      },
+      "ExpireCheckResult": {
+        "type": "object",
+        "properties": {
+          "cancelledCount": {
+            "type": "integer",
+            "example": 1
+          },
+          "cancelledOrderIds": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "example": [
+              80
+            ]
+          },
+          "scannedCount": {
+            "type": "integer",
+            "example": 1
+          },
+          "timeoutMinutes": {
+            "type": "integer",
+            "example": 30
+          },
+          "checkedAt": {
+            "type": "string",
+            "example": "2026-11-09T03:40:00.000Z"
+          }
+        }
+      },
+      "Address": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "user_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "receiver": {
+            "type": "string",
+            "example": "张三"
+          },
+          "phone": {
+            "type": "string",
+            "example": "13800000000"
+          },
+          "address": {
+            "type": "string",
+            "example": "北京市朝阳区xx路1号"
+          },
+          "is_default": {
+            "type": "integer",
+            "description": "1=默认地址（同一用户最多一个）",
+            "example": 1
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-11-09 09:00:00"
+          },
+          "updated_at": {
+            "type": "string",
+            "example": "2026-11-09 09:00:00"
+          }
+        }
+      },
+      "AddressListData": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Address"
+        }
+      },
+      "OverviewData": {
+        "type": "object",
+        "properties": {
+          "totalSales": {
+            "type": "string",
+            "description": "有效订单销售额（paid/shipped/completed）",
+            "example": "26140.40"
+          },
+          "totalOrders": {
+            "type": "integer",
+            "description": "全部订单数（含已取消）",
+            "example": 38
+          },
+          "validOrders": {
+            "type": "integer",
+            "description": "有效订单数",
+            "example": 25
+          },
+          "avgOrder": {
+            "type": "string",
+            "description": "客单价 = 销售额 / 有效订单数",
+            "example": "1045.62"
+          },
+          "totalUsers": {
+            "type": "integer",
+            "example": 2
+          },
+          "totalProducts": {
+            "type": "integer",
+            "example": 31
+          },
+          "lowStockProducts": {
+            "type": "integer",
+            "description": "库存≤10 且在售的商品数",
+            "example": 2
+          }
+        }
+      },
+      "SalesTrendPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "example": "2026-11-10"
+          },
+          "amount": {
+            "type": "string",
+            "example": "598.00"
+          }
+        }
+      },
+      "OrdersTrendPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "example": "2026-11-10"
+          },
+          "count": {
+            "type": "integer",
+            "example": 4
+          }
+        }
+      },
+      "StatusDistributionItem": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "completed"
+          },
+          "count": {
+            "type": "integer",
+            "example": 9
+          }
+        }
+      },
+      "TopProductItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 3
+          },
+          "name": {
+            "type": "string",
+            "example": "机械键盘"
+          },
+          "category": {
+            "type": "string",
+            "example": "数码外设"
+          },
+          "image_url": {
+            "type": "string",
+            "example": ""
+          },
+          "sold": {
+            "type": "integer",
+            "example": 18
+          },
+          "amount": {
+            "type": "string",
+            "example": "5382.00"
+          }
+        }
+      },
+      "LowStockItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 9
+          },
+          "name": {
+            "type": "string",
+            "example": "挂耳咖啡"
+          },
+          "category": {
+            "type": "string",
+            "example": "食品饮料"
+          },
+          "price": {
+            "type": "string",
+            "example": "59.00"
+          },
+          "stock": {
+            "type": "integer",
+            "example": 3
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "on",
+              "off"
+            ],
+            "example": "on"
+          }
+        }
+      },
+      "HealthData": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "time": {
+            "type": "string",
+            "example": "2026-11-11T02:00:00.000Z"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 50,
+            "description": "用户名，3-50 位且唯一",
+            "example": "zhangsan"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "description": "密码，至少 6 位（入库为 bcrypt 哈希）",
+            "example": "123456"
+          },
+          "nickname": {
+            "type": "string",
+            "maxLength": 50,
+            "description": "昵称，可选，默认与用户名相同",
+            "example": "张三"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "admin"
+          },
+          "password": {
+            "type": "string",
+            "example": "admin123"
+          }
+        }
+      },
+      "ChangeNicknameRequest": {
+        "type": "object",
+        "required": [
+          "nickname"
+        ],
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "maxLength": 50,
+            "description": "新昵称，不能为空，最长 50 字符",
+            "example": "管理员小葛"
+          }
+        }
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "required": [
+          "oldPassword",
+          "newPassword"
+        ],
+        "properties": {
+          "oldPassword": {
+            "type": "string",
+            "description": "原密码，必须校验通过",
+            "example": "admin123"
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 64,
+            "description": "新密码 6-64 位，不能与原密码相同",
+            "example": "admin456"
+          }
+        }
+      },
+      "ProductCreateRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "price",
+          "stock"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "无线机械键盘"
+          },
+          "description": {
+            "type": "string",
+            "example": "87键 三模热插拔"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "example": 299
+          },
+          "stock": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 50
+          },
+          "category": {
+            "type": "string",
+            "description": "分类，缺省为「其他」",
+            "example": "数码外设"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true,
+            "example": ""
+          }
+        }
+      },
+      "ProductUpdateRequest": {
+        "type": "object",
+        "description": "支持部分字段更新，未传字段沿用原值",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "无线机械键盘（新版）"
+          },
+          "description": {
+            "type": "string",
+            "example": "87键 三模热插拔 白色"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "example": 279
+          },
+          "stock": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "必须为非负整数",
+            "example": 40
+          },
+          "category": {
+            "type": "string",
+            "example": "数码外设"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://example.com/kb.jpg"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "on",
+              "off"
+            ],
+            "example": "on"
+          }
+        }
+      },
+      "ProductStatusRequest": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "on",
+              "off"
+            ],
+            "description": "只能为 on 或 off",
+            "example": "off"
+          }
+        }
+      },
+      "OrderItemInput": {
+        "type": "object",
+        "required": [
+          "productId",
+          "quantity"
+        ],
+        "properties": {
+          "productId": {
+            "type": "integer",
+            "example": 1
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 2
+          }
+        }
+      },
+      "OrderCreateRequest": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "description": "收货信息两种来源：传 addressId 由后端按地址簿回填并校验归属（推荐）；或直接传 receiverName/receiverPhone/receiverAddress",
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/OrderItemInput"
+            }
+          },
+          "addressId": {
+            "type": "integer",
+            "nullable": true,
+            "description": "地址簿 ID，传此字段时忽略手填收货信息",
+            "example": 1
+          },
+          "receiverName": {
+            "type": "string",
+            "maxLength": 50,
+            "example": "张三"
+          },
+          "receiverPhone": {
+            "type": "string",
+            "pattern": "^1\\d{10}$",
+            "example": "13800000000"
+          },
+          "receiverAddress": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "北京市朝阳区xx路1号"
+          },
+          "remark": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "订单备注，可选，最长 255 字符",
+            "example": "工作日送达"
+          }
+        }
+      },
+      "OrderStatusRequest": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "paid",
+              "shipped",
+              "completed"
+            ],
+            "description": "状态机只允许前进 1 步",
+            "example": "shipped"
+          },
+          "expressCompany": {
+            "type": "string",
+            "maxLength": 50,
+            "description": "快递公司，仅发货时使用",
+            "example": "顺丰速运"
+          },
+          "expressNo": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9-]{5,64}$",
+            "description": "物流单号，选填，5-64 位字母/数字/短横线",
+            "example": "SF1234567890"
+          }
+        }
+      },
+      "OrderRemarkRequest": {
+        "type": "object",
+        "properties": {
+          "remark": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "传空字符串表示清空备注",
+            "example": "工作日送达"
+          }
+        }
+      },
+      "ExpireCheckRequest": {
+        "type": "object",
+        "properties": {
+          "timeoutMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "超时分钟数，不传则使用默认 30 分钟",
+            "example": 30
+          }
+        }
+      },
+      "AddressCreateRequest": {
+        "type": "object",
+        "required": [
+          "receiver",
+          "phone",
+          "address"
+        ],
+        "properties": {
+          "receiver": {
+            "type": "string",
+            "maxLength": 50,
+            "example": "张三"
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^1\\d{10}$",
+            "description": "11 位手机号",
+            "example": "13800000000"
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "北京市朝阳区xx路1号"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "是否设为默认；首条地址自动成为默认；单用户最多 20 条",
+            "example": true
+          }
+        }
+      },
+      "AddressUpdateRequest": {
+        "type": "object",
+        "required": [
+          "receiver",
+          "phone",
+          "address"
+        ],
+        "properties": {
+          "receiver": {
+            "type": "string",
+            "maxLength": 50,
+            "example": "李四"
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^1\\d{10}$",
+            "example": "13900000000"
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "上海市浦东新区yy路2号"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "参数校验失败 / 业务规则拒绝（库存不足、状态流转非法、备注超长等）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponse"
+            },
+            "example": {
+              "code": 400,
+              "message": "参数不合法",
+              "data": null
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "未登录 / token 失效（Authorization 缺失或无效）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponse"
+            },
+            "example": {
+              "code": 401,
+              "message": "未登录，请先登录",
+              "data": null
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "已登录但无权限（非管理员访问管理接口、操作他人订单）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponse"
+            },
+            "example": {
+              "code": 403,
+              "message": "无权限访问，需要管理员账号",
+              "data": null
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "资源不存在（订单/商品/地址不存在，或接口不存在）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponse"
+            },
+            "example": {
+              "code": 404,
+              "message": "资源不存在",
+              "data": null
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "服务器内部错误（不向前端暴露堆栈细节）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiResponse"
+            },
+            "example": {
+              "code": 500,
+              "message": "服务器内部错误",
+              "data": null
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "PageParam": {
+        "name": "page",
+        "in": "query",
+        "description": "页码，从 1 开始",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "PageSizeParam": {
+        "name": "pageSize",
+        "in": "query",
+        "description": "每页条数，1-100",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 10
+        }
+      },
+      "IdPath": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "资源 ID（正整数）",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "OrderStatusQuery": {
+        "name": "status",
+        "in": "query",
+        "description": "订单状态筛选",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "paid",
+            "shipped",
+            "completed",
+            "cancelled"
+          ]
+        }
+      },
+      "OrderNoQuery": {
+        "name": "orderNo",
+        "in": "query",
+        "description": "订单号模糊搜索",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DaysQuery": {
+        "name": "days",
+        "in": "query",
+        "description": "统计天数，1-30，默认 7",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "default": 7
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "健康检查 / Health"
+        ],
+        "summary": "服务健康检查 / Health check",
+        "description": "无需鉴权，用于确认后端服务已启动。返回 status=ok 与服务端当前时间。",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "服务正常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/HealthData"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "status": "ok",
+                    "time": "2026-11-11T02:00:00.000Z"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "认证 / Auth"
+        ],
+        "summary": "用户注册 / Register",
+        "description": "公开接口。用户名 3-50 位且唯一，密码至少 6 位；密码经 bcrypt（10 轮加盐）哈希后入库，绝不明文存储。注册用户角色固定为 user。",
+        "operationId": "register",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "注册成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "注册成功",
+                  "data": {
+                    "id": 3
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法 / 用户名已被注册",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "用户名已被注册",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "认证 / Auth"
+        ],
+        "summary": "用户登录 / Login",
+        "description": "公开接口。bcrypt 比对哈希通过后签发 JWT（默认 7 天有效），返回 token 与用户信息。默认账号：admin/admin123（管理员）、user/user123（普通用户）。",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/LoginResult"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "登录成功",
+                  "data": {
+                    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "user": {
+                      "id": 1,
+                      "username": "admin",
+                      "nickname": "管理员",
+                      "role": "admin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "用户名或密码为空",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "用户名和密码不能为空",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "用户名或密码错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 401,
+                  "message": "用户名或密码错误",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/auth/profile": {
+      "get": {
+        "tags": [
+          "认证 / Auth"
+        ],
+        "summary": "获取当前登录用户信息 / Get profile",
+        "description": "根据 Authorization 中的 token 解析用户身份后查询本人资料（不返回密码）。",
+        "operationId": "getProfile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserProfile"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "id": 1,
+                    "username": "admin",
+                    "nickname": "管理员",
+                    "role": "admin",
+                    "created_at": "2026-11-02 10:00:00"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "认证 / Auth"
+        ],
+        "summary": "修改昵称 / Update nickname",
+        "description": "修改当前登录用户昵称，昵称不能为空且最长 50 字符。执行逻辑与 POST /auth/change-nickname 完全一致，属 RESTful 别名。",
+        "operationId": "updateProfileNickname",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeNicknameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "昵称修改成功，返回最新用户信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserProfile"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "昵称修改成功",
+                  "data": {
+                    "id": 1,
+                    "username": "admin",
+                    "nickname": "管理员小葛",
+                    "role": "admin",
+                    "created_at": "2026-11-02 10:00:00"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/auth/change-nickname": {
+      "post": {
+        "tags": [
+          "认证 / Auth"
+        ],
+        "summary": "修改昵称（别名接口）/ Change nickname",
+        "description": "与 PUT /auth/profile 等效，供前端设置页调用。",
+        "operationId": "changeNickname",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeNicknameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "昵称修改成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserProfile"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "昵称修改成功",
+                  "data": {
+                    "id": 1,
+                    "username": "admin",
+                    "nickname": "管理员小葛",
+                    "role": "admin",
+                    "created_at": "2026-11-02 10:00:00"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/auth/change-password": {
+      "post": {
+        "tags": [
+          "认证 / Auth"
+        ],
+        "summary": "修改密码 / Change password",
+        "description": "必须校验原密码（防 token 被盗后直接改密锁号）；新密码 6-64 位、不能与原密码相同；重新 bcrypt 加盐哈希入库。",
+        "operationId": "changePassword",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "密码修改成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "密码修改成功，请使用新密码重新登录",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法 / 原密码不正确",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "原密码不正确",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "tags": [
+          "商品 / Products"
+        ],
+        "summary": "商品列表（分页+筛选+排序）/ List products",
+        "description": "登录用户可访问。普通用户只能看到 status=on 的上架商品；管理员可通过 status 参数查看全部。支持关键词（名称/描述）、分类、排序与分页，排序字段走白名单映射（防 ORDER BY 注入）。",
+        "operationId": "listProducts",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "description": "关键词，模糊匹配商品名称或描述",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "分类名称，精确匹配",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "上架状态（仅管理员有效）",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "on",
+                "off"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "排序方式，非法值回落 newest",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "newest",
+                "price_asc",
+                "price_desc",
+                "stock_asc",
+                "stock_desc",
+                "sales_desc"
+              ],
+              "default": "newest"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageSizeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ProductListData"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "list": [
+                      {
+                        "id": 1,
+                        "name": "无线机械键盘",
+                        "description": "87键 三模热插拔",
+                        "price": "299.00",
+                        "stock": 50,
+                        "category": "数码外设",
+                        "image_url": null,
+                        "status": "on",
+                        "created_at": "2026-11-02 10:00:00",
+                        "updated_at": "2026-11-02 10:00:00",
+                        "sales_count": 12
+                      }
+                    ],
+                    "pagination": {
+                      "page": 1,
+                      "pageSize": 10,
+                      "total": 31
+                    },
+                    "sort": "newest"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "商品 / Products"
+        ],
+        "summary": "创建商品（管理员）/ Create product",
+        "description": "仅管理员。名称必填，价格与库存必须为非负；分类缺省为「其他」。",
+        "operationId": "createProduct",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "商品创建成功",
+                  "data": {
+                    "id": 8
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/products/categories": {
+      "get": {
+        "tags": [
+          "商品 / Products"
+        ],
+        "summary": "商品分类列表（含在售数量）/ List categories",
+        "description": "登录用户可见，供商城分类筛选使用。只统计在售（status=on）商品，保证分类计数与实际可购买商品一致。",
+        "operationId": "listCategories",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/CategoryRatioItem"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": [
+                    {
+                      "category": "数码外设",
+                      "count": 7
+                    },
+                    {
+                      "category": "服饰",
+                      "count": 6
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "tags": [
+          "商品 / Products"
+        ],
+        "summary": "商品详情 / Get product detail",
+        "description": "登录用户可访问；普通用户访问已下架商品返回 404（避免泄露下架商品信息）。",
+        "operationId": "getProduct",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Product"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "id": 1,
+                    "name": "无线机械键盘",
+                    "description": "87键 三模热插拔",
+                    "price": "299.00",
+                    "stock": 50,
+                    "category": "数码外设",
+                    "image_url": null,
+                    "status": "on",
+                    "created_at": "2026-11-02 10:00:00",
+                    "updated_at": "2026-11-02 10:00:00",
+                    "sales_count": 12
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "商品 ID 不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "商品ID不合法",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "商品不存在或已下架",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 404,
+                  "message": "商品不存在或已下架",
+                  "data": null
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "商品 / Products"
+        ],
+        "summary": "更新商品（管理员）/ Update product",
+        "description": "仅管理员，支持部分字段更新（未传字段沿用原值），避免只改库存时把名称价格覆盖为空。库存必须为非负整数，status 只能为 on/off。",
+        "operationId": "updateProduct",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "商品更新成功",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "商品 / Products"
+        ],
+        "summary": "删除商品（管理员）/ Delete product",
+        "description": "仅管理员。若商品已被订单引用，外键约束会拒绝删除，接口返回 400 并提示改为下架，以保护历史订单数据。",
+        "operationId": "deleteProduct",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "商品删除成功",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "商品已被订单引用，无法删除",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "该商品已被订单引用，无法删除，建议改为下架",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/products/{id}/status": {
+      "patch": {
+        "tags": [
+          "商品 / Products"
+        ],
+        "summary": "上架/下架（管理员）/ Toggle product status",
+        "description": "仅管理员。status 只能为 on 或 off，商品不存在返回 404。",
+        "operationId": "toggleProductStatus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "操作成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "商品已下架",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "status 取值非法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "status 只能为 on 或 off",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/orders": {
+      "post": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "创建订单 / Create order",
+        "description": "登录用户下单。事务内先 FOR UPDATE 行锁校验商品与库存，再用条件更新 UPDATE ... WHERE stock >= ? 扣减库存（受影响行数为 0 即库存不足并整单回滚），最后写入订单与明细快照。收货信息可传 addressId（后端按地址簿回填并校验归属，防篡改）或直接手填。",
+        "operationId": "createOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "下单成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CreateOrderResult"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "下单成功",
+                  "data": {
+                    "orderId": 12,
+                    "orderNo": "20261111103000123456",
+                    "totalAmount": "598.00"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法 / 库存不足 / 商品已下架 / 地址不属于当前用户",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "商品「无线机械键盘」库存不足",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "全部订单列表（管理员）/ List all orders",
+        "description": "仅管理员。默认只返回未归档订单（is_archived=0）；archived=1 时只返回已归档订单。返回 buyer 用户名、物流字段与待支付倒计时。",
+        "operationId": "listAllOrders",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrderStatusQuery"
+          },
+          {
+            "$ref": "#/components/parameters/OrderNoQuery"
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "description": "1=true 查已归档；其它值（含不传）只查未归档",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ],
+              "default": "0"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageSizeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/OrderListData"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "list": [
+                      {
+                        "id": 12,
+                        "order_no": "20261111103000123456",
+                        "user_id": 1,
+                        "buyer": "admin",
+                        "total_amount": "598.00",
+                        "status": "pending",
+                        "receiver_name": "张三",
+                        "receiver_phone": "13800000000",
+                        "receiver_address": "北京市朝阳区xx路1号",
+                        "express_company": null,
+                        "express_no": null,
+                        "shipped_at": null,
+                        "remark": "工作日送达",
+                        "created_at": "2026-11-11 10:30:00",
+                        "is_archived": 0,
+                        "pay_deadline": "2026-11-11 11:00:00",
+                        "pay_remain_seconds": 1750
+                      }
+                    ],
+                    "pagination": {
+                      "page": 1,
+                      "pageSize": 10,
+                      "total": 38
+                    },
+                    "archived": 0
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/orders/mine": {
+      "get": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "我的订单列表 / List my orders",
+        "description": "登录用户查询本人订单，支持状态筛选与订单号模糊搜索；返回物流信息、备注与待支付倒计时（pay_deadline / pay_remain_seconds）。",
+        "operationId": "listMyOrders",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrderStatusQuery"
+          },
+          {
+            "$ref": "#/components/parameters/OrderNoQuery"
+          },
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageSizeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/MyOrderListData"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "list": [
+                      {
+                        "id": 12,
+                        "order_no": "20261111103000123456",
+                        "user_id": 1,
+                        "buyer": "admin",
+                        "total_amount": "598.00",
+                        "status": "pending",
+                        "receiver_name": "张三",
+                        "receiver_phone": "13800000000",
+                        "receiver_address": "北京市朝阳区xx路1号",
+                        "express_company": null,
+                        "express_no": null,
+                        "shipped_at": null,
+                        "remark": "工作日送达",
+                        "created_at": "2026-11-11 10:30:00",
+                        "is_archived": 0,
+                        "pay_deadline": "2026-11-11 11:00:00",
+                        "pay_remain_seconds": 1750
+                      }
+                    ],
+                    "pagination": {
+                      "page": 1,
+                      "pageSize": 10,
+                      "total": 5
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/orders/expire-check": {
+      "post": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "手动触发待支付超时检查（管理员）/ Trigger expire check",
+        "description": "仅管理员。扫描「pending 且下单时间早于 NOW() - timeoutMinutes」的订单，逐笔在事务内 FOR UPDATE 复核后置为 cancelled 并回滚库存。更新语句带 WHERE status='pending' 保证幂等。定时任务每分钟自动执行同一逻辑，本接口用于答辩演示与人工补跑。",
+        "operationId": "expireCheck",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpireCheckRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "检查完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ExpireCheckResult"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "本次自动取消 1 笔超时待支付订单",
+                  "data": {
+                    "cancelledCount": 1,
+                    "cancelledOrderIds": [
+                      80
+                    ],
+                    "scannedCount": 1,
+                    "timeoutMinutes": 30,
+                    "checkedAt": "2026-11-11T03:40:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "订单详情 / Get order detail",
+        "description": "订单本人或管理员可查看（他人订单返回 403）。响应为订单主表全部字段 + items 明细快照数组 + 待支付倒计时。",
+        "operationId": "getOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/OrderDetail"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "id": 12,
+                    "order_no": "20261111103000123456",
+                    "user_id": 1,
+                    "buyer": "admin",
+                    "total_amount": "598.00",
+                    "status": "pending",
+                    "receiver_name": "张三",
+                    "receiver_phone": "13800000000",
+                    "receiver_address": "北京市朝阳区xx路1号",
+                    "express_company": null,
+                    "express_no": null,
+                    "shipped_at": null,
+                    "remark": "工作日送达",
+                    "created_at": "2026-11-11 10:30:00",
+                    "is_archived": 0,
+                    "pay_deadline": "2026-11-11 11:00:00",
+                    "pay_remain_seconds": 1750,
+                    "items": [
+                      {
+                        "id": 1,
+                        "product_id": 1,
+                        "product_name": "无线机械键盘",
+                        "price": "299.00",
+                        "quantity": 2,
+                        "subtotal": "598.00"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "无权查看他人订单",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 403,
+                  "message": "无权查看他人订单",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/orders/{id}/cancel": {
+      "post": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "取消订单（本人或管理员，仅待支付）/ Cancel order",
+        "description": "仅 pending 状态可取消。事务内 FOR UPDATE 锁订单，按 order_items 逐条回加 products.stock 回滚库存，再置为 cancelled。非本人且非管理员返回 403。",
+        "operationId": "cancelOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "取消成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "订单已取消",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "仅待支付订单可取消",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "仅待支付订单可取消",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "无权操作他人订单",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 403,
+                  "message": "无权操作他人订单",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/orders/{id}/pay": {
+      "post": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "支付订单（本人，pending→paid）/ Pay order",
+        "description": "仅本人且仅 pending 可支付。若订单已超过支付超时时间，会当场取消并回滚库存，返回 400 提示超时，避免定时任务未跑到时被「复活支付」。",
+        "operationId": "payOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "支付成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "status": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "支付成功",
+                  "data": {
+                    "id": 12,
+                    "status": "paid"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "状态不允许支付 / 已超时自动取消",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "订单已超过 30 分钟未支付，已自动取消并释放库存",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/orders/{id}/confirm": {
+      "post": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "确认收货（本人，shipped→completed）/ Confirm receipt",
+        "description": "仅本人且仅已发货状态可确认收货，完成后订单进入 completed。",
+        "operationId": "confirmOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "确认收货成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "status": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "确认收货成功",
+                  "data": {
+                    "id": 12,
+                    "status": "completed"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "仅已发货订单可确认收货",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "仅已发货订单可确认收货",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/orders/{id}/status": {
+      "post": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "更新订单状态（管理员）/ Update order status",
+        "description": "仅管理员。状态机只允许按 pending→paid→shipped→completed 顺序前进 1 步，跳转或回退返回 400。流转到 shipped 时写入 shipped_at=NOW()，并可同时记录快递公司与物流单号（物流单号 5-64 位字母/数字/短横线）。",
+        "operationId": "updateOrderStatus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "express_company": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "express_no": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "发货成功，物流信息已记录",
+                  "data": {
+                    "id": 12,
+                    "status": "shipped",
+                    "express_company": "顺丰速运",
+                    "express_no": "SF1234567890"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "状态流转非法 / 物流单号格式错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "订单状态不允许从 pending 流转到 completed",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/orders/{id}/archive": {
+      "post": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "归档订单（管理员，软删除）/ Archive order",
+        "description": "仅管理员。只有 completed / cancelled 状态可归档；仅将 is_archived 置 1，订单与明细数据完整保留，默认列表不再展示，可随时取消归档恢复。重复归档返回 400。",
+        "operationId": "archiveOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "归档成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "is_archived": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "订单已归档，数据保留可追溯",
+                  "data": {
+                    "id": 79,
+                    "is_archived": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "状态不允许归档 / 已归档",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "该订单已归档，无需重复归档",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/orders/{id}/unarchive": {
+      "post": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "取消归档（管理员）/ Unarchive order",
+        "description": "仅管理员。将已归档订单的 is_archived 置回 0，订单重新出现在默认列表；未归档订单调用返回 400。",
+        "operationId": "unarchiveOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "取消归档成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "is_archived": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "订单已取消归档",
+                  "data": {
+                    "id": 79,
+                    "is_archived": 0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "订单未归档",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "该订单未归档，无需取消归档",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/orders/{id}/remark": {
+      "post": {
+        "tags": [
+          "订单 / Orders"
+        ],
+        "summary": "保存订单备注（本人或管理员）/ Update order remark",
+        "description": "订单本人或管理员可操作，最长 255 字符，传空字符串表示清空备注（入库为 NULL）。",
+        "operationId": "updateOrderRemark",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderRemarkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "保存成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "remark": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "订单备注已保存",
+                  "data": {
+                    "id": 80,
+                    "remark": "工作日送达"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "无权操作他人订单",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 403,
+                  "message": "无权操作他人订单",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/addresses": {
+      "get": {
+        "tags": [
+          "收货地址 / Addresses"
+        ],
+        "summary": "我的收货地址列表 / List my addresses",
+        "description": "所有地址接口统一要求登录，并按 req.user.id 过滤，越权访问他人地址返回 404。列表按 is_default 优先、id 倒序排列。",
+        "operationId": "listAddresses",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/AddressListData"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": [
+                    {
+                      "id": 1,
+                      "user_id": 1,
+                      "receiver": "张三",
+                      "phone": "13800000000",
+                      "address": "北京市朝阳区xx路1号",
+                      "is_default": 1,
+                      "created_at": "2026-11-09 09:00:00",
+                      "updated_at": "2026-11-09 09:00:00"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "收货地址 / Addresses"
+        ],
+        "summary": "新增收货地址 / Create address",
+        "description": "收货人/电话/地址必填，电话须为 11 位手机号；单用户最多 20 条；第一条地址自动成为默认地址；isDefault=true 时在事务内先清零其它默认再置 1，保证默认地址唯一。",
+        "operationId": "createAddress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "新增成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "isDefault": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "收货地址新增成功",
+                  "data": {
+                    "id": 2,
+                    "isDefault": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "字段校验失败 / 超出 20 条上限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 400,
+                  "message": "联系电话格式不正确（11位手机号）",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/addresses/{id}": {
+      "put": {
+        "tags": [
+          "收货地址 / Addresses"
+        ],
+        "summary": "编辑收货地址 / Update address",
+        "description": "仅本人地址可编辑（WHERE 同时限定 user_id）。已是默认地址时不允许通过编辑取消默认，避免出现「无默认地址」空档。",
+        "operationId": "updateAddress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "isDefault": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "收货地址更新成功",
+                  "data": {
+                    "id": 2,
+                    "isDefault": false
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "收货地址不存在或不属于当前用户",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                },
+                "example": {
+                  "code": 404,
+                  "message": "收货地址不存在",
+                  "data": null
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "收货地址 / Addresses"
+        ],
+        "summary": "删除收货地址 / Delete address",
+        "description": "仅本人地址可删除。若删除的是默认地址，事务内自动把剩余最新一条提升为默认，返回 promotedDefaultId。",
+        "operationId": "deleteAddress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "promotedDefaultId": {
+                              "type": "integer",
+                              "nullable": true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "收货地址删除成功",
+                  "data": {
+                    "id": 2,
+                    "promotedDefaultId": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/addresses/{id}/default": {
+      "post": {
+        "tags": [
+          "收货地址 / Addresses"
+        ],
+        "summary": "设为默认地址 / Set default address",
+        "description": "仅本人地址可操作。事务内先清零该用户全部默认标记再置 1，保证任何时刻最多一个默认地址。",
+        "operationId": "setDefaultAddress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "设置成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "已设为默认地址",
+                  "data": {
+                    "id": 2
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/stats/overview": {
+      "get": {
+        "tags": [
+          "统计 / Stats"
+        ],
+        "summary": "统计总览（管理员）/ Overview",
+        "description": "仅管理员。销售额与有效订单数只统计 paid/shipped/completed 状态（有效订单口径），客单价=销售额/有效订单数，低库存为库存≤10 且在售的商品数。",
+        "operationId": "statsOverview",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/OverviewData"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": {
+                    "totalSales": "26140.40",
+                    "totalOrders": 38,
+                    "validOrders": 25,
+                    "avgOrder": "1045.62",
+                    "totalUsers": 2,
+                    "totalProducts": 31,
+                    "lowStockProducts": 2
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/stats/category": {
+      "get": {
+        "tags": [
+          "统计 / Stats"
+        ],
+        "summary": "商品分类占比（管理员）/ Category ratio",
+        "description": "仅管理员。按商品分类聚合数量，按数量倒序。",
+        "operationId": "statsCategory",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/CategoryRatioItem"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": [
+                    {
+                      "category": "数码外设",
+                      "count": 7
+                    },
+                    {
+                      "category": "服饰",
+                      "count": 6
+                    },
+                    {
+                      "category": "居家生活",
+                      "count": 6
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/stats/trend": {
+      "get": {
+        "tags": [
+          "统计 / Stats"
+        ],
+        "summary": "销售额趋势（管理员）/ Sales trend",
+        "description": "仅管理员。近 N 天（默认 7，范围 1-30）按日期聚合有效订单销售额，金额以字符串返回。",
+        "operationId": "statsSalesTrend",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DaysQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SalesTrendPoint"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": [
+                    {
+                      "date": "2026-11-09",
+                      "amount": "0.00"
+                    },
+                    {
+                      "date": "2026-11-10",
+                      "amount": "598.00"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/stats/orders-trend": {
+      "get": {
+        "tags": [
+          "统计 / Stats"
+        ],
+        "summary": "订单量趋势（管理员）/ Orders trend",
+        "description": "仅管理员。近 N 天（默认 7，范围 1-30）按日期聚合全部订单数量（含已取消）。",
+        "operationId": "statsOrdersTrend",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DaysQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/OrdersTrendPoint"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": [
+                    {
+                      "date": "2026-11-09",
+                      "count": 3
+                    },
+                    {
+                      "date": "2026-11-10",
+                      "count": 4
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/stats/status-distribution": {
+      "get": {
+        "tags": [
+          "统计 / Stats"
+        ],
+        "summary": "订单状态分布（管理员）/ Status distribution",
+        "description": "仅管理员。按订单状态分组计数，用于看板饼图。",
+        "operationId": "statsStatusDistribution",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/StatusDistributionItem"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": [
+                    {
+                      "status": "completed",
+                      "count": 9
+                    },
+                    {
+                      "status": "cancelled",
+                      "count": 11
+                    },
+                    {
+                      "status": "pending",
+                      "count": 2
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/stats/top-products": {
+      "get": {
+        "tags": [
+          "统计 / Stats"
+        ],
+        "summary": "畅销商品 Top5（管理员）/ Top products",
+        "description": "仅管理员。按有效订单（paid/shipped/completed）统计销量与销售额，返回前 5 名；商品被删除时回退使用订单明细中的名称快照。",
+        "operationId": "statsTopProducts",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/TopProductItem"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": [
+                    {
+                      "id": 3,
+                      "name": "机械键盘",
+                      "category": "数码外设",
+                      "image_url": "",
+                      "sold": 18,
+                      "amount": "5382.00"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/stats/low-stock": {
+      "get": {
+        "tags": [
+          "统计 / Stats"
+        ],
+        "summary": "低库存商品明细（管理员）/ Low stock products",
+        "description": "仅管理员。返回库存≤10 且在售（status=on）的商品，按库存升序，最多 50 条，用于补货提醒。",
+        "operationId": "statsLowStock",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/LowStockItem"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "success",
+                  "data": [
+                    {
+                      "id": 9,
+                      "name": "挂耳咖啡",
+                      "category": "食品饮料",
+                      "price": "59.00",
+                      "stock": 3,
+                      "status": "on"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    }
+  }
+}

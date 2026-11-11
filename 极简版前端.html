@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<!--
+ ============================================================================
+  云商优选 · 极简版前端（答辩对照用，单文件、零框架、零构建）
+  一句话：不用 Vue / 不用 Element Plus / 不用 npm，一个 HTML + 原生 JS 跑通
+          「登录 → 看商品 → 加购物车 → 下单 → 支付 → 查订单」完整闭环。
+  用法  ：双击本文件即可打开（不需要启动前端 dev 服务器）
+  答辩点：① fetch 调后端接口，token 放请求头 Authorization
+          ② 购物车存 localStorage，刷新不丢
+          ③ 页面切换就是显示/隐藏 div，本质和 Vue 路由是同一件事
+ ============================================================================
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>云商优选 · 极简版</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", sans-serif; background: #f4f6fa; color: #333; padding-bottom: 40px; }
+  header { background: #1f6feb; color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; font-weight: 600; }
+  header .sp { flex: 1; }
+  header select, header button { padding: 6px 10px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer; }
+  .wrap { max-width: 1080px; margin: 18px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 6px rgba(0,0,0,.06); }
+  .card h2 { font-size: 15px; margin-bottom: 12px; color: #1f6feb; }
+  input, textarea { padding: 8px 10px; border: 1px solid #d6dbe4; border-radius: 6px; font-size: 13px; width: 100%; margin-bottom: 8px; }
+  button.btn { background: #1f6feb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  button.btn:disabled { background: #b9c2d0; cursor: not-allowed; }
+  button.gray { background: #6b7280; } button.green { background: #16a34a; } button.red { background: #dc2626; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .goods { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+  .item { border: 1px solid #eceff4; border-radius: 8px; padding: 12px; }
+  .item h3 { font-size: 14px; margin-bottom: 6px; }
+  .item .price { color: #dc2626; font-weight: 700; font-size: 16px; }
+  .item .meta { color: #888; font-size: 12px; margin: 4px 0 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px; border-bottom: 1px solid #eef1f6; text-align: left; }
+  th { background: #f7f9fc; font-weight: 600; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .t-pending { background: #fff3cd; color: #8a6d00; } .t-paid { background: #dbeafe; color: #1e40af; }
+  .t-shipped { background: #ede9fe; color: #5b21b6; } .t-completed { background: #dcfce7; color: #166534; }
+  .t-cancelled { background: #f1f3f5; color: #6b7280; }
+  .hide { display: none; }
+  .tip { font-size: 12px; color: #888; margin-top: 6px; }
+  .empty { color: #999; font-size: 13px; padding: 10px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>云商优选 · 极简版</h1>
+  <span id="who" style="font-size:13px;opacity:.9">未登录</span>
+  <span class="sp"></span>
+  <select id="port" title="切换后端">
+    <option value="3000">工程版 3000</option>
+    <option value="3001" selected>极简版 3001</option>
+  </select>
+  <button class="btn gray" id="btnLogout">退出登录</button>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ 页面一：登录 / 注册 ============ -->
+  <div id="view-login">
+    <div class="card">
+      <h2>登录</h2>
+      <input id="lgUser" placeholder="用户名，如 user">
+      <input id="lgPass" type="password" placeholder="密码，如 user123">
+      <div class="row">
+        <button class="btn" onclick="doLogin()">登录</button>
+        <button class="btn gray" onclick="doRegister()">注册新账号</button>
+      </div>
+      <p class="tip">内置账号：admin / admin123（管理员）、user / user123（普通用户）</p>
+    </div>
+  </div>
+
+  <!-- ============ 页面二：商城 + 购物车 ============ -->
+  <div id="view-shop" class="hide">
+    <div class="card">
+      <h2>商品列表</h2>
+      <div class="row" style="margin-bottom:12px">
+        <input id="kw" placeholder="搜商品名" style="max-width:220px">
+        <button class="btn" onclick="loadGoods()">搜索</button>
+      </div>
+      <div class="goods" id="goods"></div>
+    </div>
+
+    <div class="card">
+      <h2>购物车（存在浏览器 localStorage，刷新不丢）</h2>
+      <table>
+        <thead><tr><th>商品</th><th>单价</th><th>数量</th><th>小计</th><th>操作</th></tr></thead>
+        <tbody id="cartBody"></tbody>
+      </table>
+      <div class="row" style="margin-top:12px">
+        <strong>合计：<span id="cartTotal" style="color:#dc2626">￥0.00</span></strong>
+        <span class="sp" style="flex:1"></span>
+        <button class="btn green" onclick="doCheckout()">去下单</button>
+        <button class="btn gray" onclick="clearCart()">清空</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 页面三：我的订单 ============ -->
+  <div id="view-orders" class="hide">
+    <div class="card">
+      <h2>我的订单</h2>
+      <button class="btn gray" onclick="loadOrders()" style="margin-bottom:10px">刷新</button>
+      <table>
+        <thead><tr><th>订单号</th><th>金额</th><th>状态</th><th>收货人</th><th>物流</th><th>操作</th></tr></thead>
+        <tbody id="orderBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========================== 1. 全局状态 ========================== */
+const S = {
+  base: () => `http://localhost:${document.getElementById('port').value}/api`,
+  token: localStorage.getItem('simple_token') || '',
+  user: JSON.parse(localStorage.getItem('simple_user') || 'null'),
+  cart: JSON.parse(localStorage.getItem('simple_cart') || '[]'),   // [{id,name,price,quantity}]
+};
+
+/* ========================== 2. 请求封装 ========================== */
+// 所有接口都走这里：统一拼 token、统一解 { code, message, data }
+async function api(path, method = 'GET', body = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (S.token) headers.Authorization = 'Bearer ' + S.token;   // JWT 放请求头
+
+  const resp = await fetch(S.base() + path, {
+    method, headers, body: body ? JSON.stringify(body) : null,
+  });
+  const json = await resp.json().catch(() => ({ code: resp.status, message: '响应解析失败' }));
+  if (json.code !== 0) throw new Error(json.message || '请求失败');
+  return json.data;
+}
+
+/* ========================== 3. 登录登出 ========================== */
+async function doLogin() {
+  try {
+    const data = await api('/auth/login', 'POST', {
+      username: document.getElementById('lgUser').value.trim(),
+      password: document.getElementById('lgPass').value,
+    });
+    S.token = data.token; S.user = data.user;
+    localStorage.setItem('simple_token', S.token);
+    localStorage.setItem('simple_user', JSON.stringify(S.user));
+    enter();
+  } catch (e) { alert('登录失败：' + e.message); }
+}
+
+async function doRegister() {
+  const username = document.getElementById('lgUser').value.trim();
+  const password = document.getElementById('lgPass').value;
+  if (!username || !password) return alert('先填用户名和密码，再点注册');
+  try {
+    await api('/auth/register', 'POST', { username, password });
+    alert('注册成功，请点登录');
+  } catch (e) { alert('注册失败：' + e.message); }
+}
+
+function doLogout() {
+  S.token = ''; S.user = null;
+  localStorage.removeItem('simple_token');
+  localStorage.removeItem('simple_user');
+  document.getElementById('view-login').classList.remove('hide');
+  document.getElementById('view-shop').classList.add('hide');
+  document.getElementById('view-orders').classList.add('hide');
+  document.getElementById('who').textContent = '未登录';
+}
+
+/* ========================== 4. 进入商城 ========================== */
+function enter() {
+  document.getElementById('view-login').classList.add('hide');
+  document.getElementById('view-shop').classList.remove('hide');
+  document.getElementById('view-orders').classList.remove('hide');
+  document.getElementById('who').textContent =
+    `已登录：${S.user.nickname || S.user.username}（${S.user.role === 'admin' ? '管理员' : '普通用户'}）`;
+  loadGoods(); renderCart(); loadOrders();
+}
+
+/* ========================== 5. 商品列表 ========================== */
+async function loadGoods() {
+  try {
+    const kw = document.getElementById('kw').value.trim();
+    const data = await api('/products?page=1&pageSize=20' + (kw ? '&keyword=' + encodeURIComponent(kw) : ''));
+    const box = document.getElementById('goods');
+    if (!data.list.length) { box.innerHTML = '<div class="empty">没有商品</div>'; return; }
+    box.innerHTML = data.list.map((p) => `
+      <div class="item">
+        <h3>${p.name}</h3>
+        <div class="price">￥${Number(p.price).toFixed(2)}</div>
+        <div class="meta">库存 ${p.stock} · 已售 ${p.sales_count} · ${p.category || '未分类'}</div>
+        <button class="btn" ${p.stock <= 0 ? 'disabled' : ''} onclick="addCart(${p.id},'${p.name.replace(/'/g, "\\'")}',${p.price},${p.stock})">
+          ${p.stock <= 0 ? '已售罄' : '加入购物车'}
+        </button>
+      </div>`).join('');
+  } catch (e) { alert('商品加载失败：' + e.message); }
+}
+
+/* ========================== 6. 购物车（localStorage 持久化） ========================== */
+function saveCart() { localStorage.setItem('simple_cart', JSON.stringify(S.cart)); }
+
+function addCart(id, name, price, stock) {
+  const hit = S.cart.find((x) => x.id === id);
+  if (hit) {
+    if (hit.quantity >= stock) return alert('库存不够了');
+    hit.quantity++;
+  } else {
+    S.cart.push({ id, name, price: Number(price), quantity: 1 });
+  }
+  saveCart(); renderCart();
+}
+
+function renderCart() {
+  const tbody = document.getElementById('cartBody');
+  if (!S.cart.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">购物车是空的</td></tr>';
+    document.getElementById('cartTotal').textContent = '￥0.00';
+    return;
+  }
+  tbody.innerHTML = S.cart.map((x, i) => `
+    <tr>
+      <td>${x.name}</td>
+      <td>￥${x.price.toFixed(2)}</td>
+      <td>
+        <button class="btn gray" style="padding:2px 8px" onclick="step(${i},-1)">-</button>
+        ${x.quantity}
+        <button class="btn gray" style="padding:2px 8px" onclick="step(${i},1)">+</button>
+      </td>
+      <td>￥${(x.price * x.quantity).toFixed(2)}</td>
+      <td><button class="btn red" style="padding:2px 8px" onclick="delCart(${i})">删除</button></td>
+    </tr>`).join('');
+  const total = S.cart.reduce((s, x) => s + x.price * x.quantity, 0);
+  document.getElementById('cartTotal').textContent = '￥' + total.toFixed(2);
+}
+
+function step(i, delta) {
+  S.cart[i].quantity += delta;
+  if (S.cart[i].quantity < 1) S.cart.splice(i, 1);
+  saveCart(); renderCart();
+}
+function delCart(i) { S.cart.splice(i, 1); saveCart(); renderCart(); }
+function clearCart() { S.cart = []; saveCart(); renderCart(); }
+
+/* ========================== 7. 下单 ========================== */
+async function doCheckout() {
+  if (!S.cart.length) return alert('购物车是空的');
+
+  // 收货信息：优先用地址簿（后端回查更安全），没有地址就手填
+  let addressId = null;
+  let receiverName = '', receiverPhone = '', receiverAddress = '';
+  try {
+    const list = await api('/addresses');
+    if (list.length) {
+      const def = list.find((a) => a.is_default === 1) || list[0];
+      if (confirm(`使用默认地址：\n${def.receiver} ${def.phone}\n${def.address}\n\n点【确定】用它下单，点【取消】手动填写`)) {
+        addressId = def.id;
+      }
+    }
+  } catch (e) { /* 忽略，走手填 */ }
+
+  if (!addressId) {
+    receiverName = prompt('收货人姓名') || '';
+    receiverPhone = prompt('手机号（11位）') || '';
+    receiverAddress = prompt('详细地址') || '';
+    if (!receiverName || !receiverPhone || !receiverAddress) return;
+  }
+
+  try {
+    // 下单：后端在一个事务里扣库存 + 写订单 + 写明细
+    const data = await api('/orders', 'POST', {
+      items: S.cart.map((x) => ({ productId: x.id, quantity: x.quantity })),
+      addressId, receiverName, receiverPhone, receiverAddress,
+      remark: '极简版前端下单',
+    });
+    alert(`下单成功！\n订单号：${data.orderNo}\n金额：￥${data.totalAmount}`);
+    clearCart(); loadGoods(); loadOrders();
+  } catch (e) { alert('下单失败：' + e.message); }
+}
+
+/* ========================== 8. 我的订单 ========================== */
+const STATUS_TEXT = { pending: '待支付', paid: '已支付', shipped: '已发货', completed: '已完成', cancelled: '已取消' };
+
+async function loadOrders() {
+  try {
+    const data = await api('/orders/mine?page=1&pageSize=20');
+    const tbody = document.getElementById('orderBody');
+    if (!data.list.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">还没有订单</td></tr>'; return;
+    }
+    tbody.innerHTML = data.list.map((o) => `
+      <tr>
+        <td style="font-size:12px">${o.order_no}</td>
+        <td>￥${Number(o.total_amount).toFixed(2)}</td>
+        <td><span class="tag t-${o.status}">${STATUS_TEXT[o.status] || o.status}</span></td>
+        <td>${o.receiver_name}</td>
+        <td style="font-size:12px">${o.express_company ? o.express_company + ' ' + (o.express_no || '') : '-'}</td>
+        <td>
+          ${o.status === 'pending' ? `<button class="btn green" style="padding:4px 10px" onclick="payOrder(${o.id})">支付</button>
+            <button class="btn red" style="padding:4px 10px" onclick="cancelOrder(${o.id})">取消</button>` : ''}
+          ${o.status === 'shipped' ? `<button class="btn" style="padding:4px 10px" onclick="confirmOrder(${o.id})">确认收货</button>` : ''}
+        </td>
+      </tr>`).join('');
+  } catch (e) { /* 未登录时静默 */ }
+}
+
+async function payOrder(id) {
+  try { await api(`/orders/${id}/pay`, 'POST', {}); alert('支付成功'); loadOrders(); }
+  catch (e) { alert('支付失败：' + e.message); }
+}
+async function cancelOrder(id) {
+  if (!confirm('确定取消这笔订单？取消后库存会退回')) return;
+  try { await api(`/orders/${id}/cancel`, 'POST', {}); alert('订单已取消'); loadOrders(); loadGoods(); }
+  catch (e) { alert('取消失败：' + e.message); }
+}
+async function confirmOrder(id) {
+  try { await api(`/orders/${id}/confirm`, 'POST', {}); alert('已确认收货'); loadOrders(); }
+  catch (e) { alert('操作失败：' + e.message); }
+}
+
+/* ========================== 9. 启动 ========================== */
+document.getElementById('btnLogout').onclick = doLogout;
+if (S.token && S.user) enter();
+</script>
+</body>
+</html>
