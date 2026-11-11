@@ -79,7 +79,7 @@ npm start                 # 生产模式
 | 文件 | 用途 |
 |---|---|
 | `../docs/swagger.json` | OpenAPI 3.0.3 描述，覆盖全部 38 个接口，可导入 Swagger UI / Apifox / Postman 在线调试 |
-| `../docs/postman_collection.json` | Postman Collection v2.1，6 个分组，登录请求内置脚本自动回写 `{{token}}` |
+| `../docs/postman_collection.json` | Postman Collection v2.1，7 个分组 48 个请求，登录请求内置脚本自动回写 `{{token}}` |
 | `../docs/API接口文档.md` | 人读版接口说明与请求响应示例 |
 
 ## 默认账号
